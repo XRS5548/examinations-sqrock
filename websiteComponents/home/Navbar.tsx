@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
 
 const navItems = ["Exams", "Articles", "Companies", "Results", "About"];
 
@@ -14,10 +15,9 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">EM</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">ExaminerMax</span>
+             <Link href={'/'}>
+           <img src="/logo.png" alt="" className="h-10"/>
+            </Link>
           </div>
           
           {/* Desktop Navigation */}

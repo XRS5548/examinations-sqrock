@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Roboto } from "next/font/google";
+import NextTopLoader from 'nextjs-toploader';
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -34,6 +35,7 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable, robotoHeading.variable)}
     >
       <Toaster />
+      <NextTopLoader color="red" />
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
