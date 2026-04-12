@@ -18,6 +18,7 @@ import {
   ChevronRight,
   LogOut,
   User,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ const navigationItems = [
   { name: "Exams", href: "/dashboard/exams", icon: GraduationCap },
   { name: "Students", href: "/dashboard/students", icon: Users },
   { name: "Results", href: "/dashboard/results", icon: BarChart3 },
+  { name: "Articles", href: "/dashboard/articles", icon: BookOpen },
   { name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
   { name: "Subscription", href: "/dashboard/subscription", icon: CreditCard },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
