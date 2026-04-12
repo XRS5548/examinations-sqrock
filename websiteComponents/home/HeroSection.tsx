@@ -65,7 +65,9 @@ export function HeroSection({ allExams }: HeroSectionProps) {
               <button className="bg-white text-red-600 px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition-all">
                 Explore Exams →
               </button>
-              <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-red-500">
+
+              {/* badhai */}
+              {/* <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-red-500">
                 <div>
                   <div className="text-2xl font-bold">50K+</div>
                   <div className="text-sm text-red-100">Students</div>
@@ -78,7 +80,7 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                   <div className="text-2xl font-bold">200+</div>
                   <div className="text-sm text-red-100">Companies</div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
 
