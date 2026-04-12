@@ -5,7 +5,7 @@ import { articles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://www.examinermax.com";
+  const baseUrl = "https://www.examinermax.sqrock.cloud";
 
   // Fetch all articles from database
   const allArticles = await db
