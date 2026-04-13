@@ -46,6 +46,8 @@ export function ExamInterface({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [examSubmitted, setExamSubmitted] = useState(false);
+  const fullscreenExitRef = useRef(false);
 
   // Anti-cheat: Prevent copy, cut, paste
   useEffect(() => {
@@ -53,21 +55,21 @@ export function ExamInterface({
       e.preventDefault();
       logCheatingEvent(registrationId, "copy_attempt");
       setWarningCount(prev => prev + 1);
-      alert("Copying is not allowed during the exam!");
+      console.warn("Cheating detected");
     };
 
     const handleCut = (e: ClipboardEvent) => {
       e.preventDefault();
       logCheatingEvent(registrationId, "cut_attempt");
       setWarningCount(prev => prev + 1);
-      alert("Cutting is not allowed during the exam!");
+      console.warn("Cheating detected");
     };
 
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault();
       logCheatingEvent(registrationId, "paste_attempt");
       setWarningCount(prev => prev + 1);
-      alert("Pasting is not allowed during the exam!");
+      console.warn("Cheating detected");
     };
 
     document.addEventListener("copy", handleCopy);
@@ -102,7 +104,7 @@ export function ExamInterface({
         e.preventDefault();
         logCheatingEvent(registrationId, "devtools_attempt");
         setWarningCount(prev => prev + 1);
-        alert("Developer tools are not allowed!");
+        console.warn("Cheating detected");
         return false;
       }
 
@@ -111,7 +113,7 @@ export function ExamInterface({
         e.preventDefault();
         logCheatingEvent(registrationId, "devtools_attempt");
         setWarningCount(prev => prev + 1);
-        alert("Developer tools are not allowed!");
+        console.warn("Cheating detected");
         return false;
       }
 
@@ -120,7 +122,7 @@ export function ExamInterface({
         e.preventDefault();
         logCheatingEvent(registrationId, "view_source_attempt");
         setWarningCount(prev => prev + 1);
-        alert("View source is not allowed!");
+        console.warn("Cheating detected");
         return false;
       }
 
@@ -129,7 +131,7 @@ export function ExamInterface({
         e.preventDefault();
         logCheatingEvent(registrationId, "print_attempt");
         setWarningCount(prev => prev + 1);
-        alert("Printing is not allowed during the exam!");
+        console.warn("Cheating detected");
         return false;
       }
 
@@ -138,7 +140,7 @@ export function ExamInterface({
         e.preventDefault();
         logCheatingEvent(registrationId, "save_attempt");
         setWarningCount(prev => prev + 1);
-        alert("Saving is not allowed during the exam!");
+        console.warn("Cheating detected");
         return false;
       }
     };
@@ -149,41 +151,49 @@ export function ExamInterface({
 
   // Fullscreen mode
   useEffect(() => {
-    const requestFullscreen = async () => {
-      try {
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-          await elem.requestFullscreen();
-          setIsFullscreen(true);
-        }
-      } catch (error) {
-        console.error("Fullscreen error:", error);
-        alert("Please allow fullscreen to start the exam.");
+  const requestFullscreen = async () => {
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        await elem.requestFullscreen();
+        setIsFullscreen(true);
       }
-    };
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+    }
+  };
 
-    requestFullscreen();
+  requestFullscreen();
 
-    const handleFullscreenChange = () => {
-      const isFull = !!document.fullscreenElement;
-      setIsFullscreen(isFull);
-      
-      if (!isFull && isVisible) {
-        logCheatingEvent(registrationId, "exit_fullscreen");
-        setWarningCount(prev => prev + 1);
-        alert("Exiting fullscreen is not allowed! You will be warned.");
-        
-        // Re-enter fullscreen if exited
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen();
-        }
-      }
-    };
+  const handleFullscreenChange = () => {
+    const isFull = !!document.fullscreenElement;
+    setIsFullscreen(isFull);
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [registrationId, isVisible]);
+    if (
+      !isFull &&
+      isVisible &&
+      !examSubmitted &&
+      !fullscreenExitRef.current
+    ) {
+      fullscreenExitRef.current = true;
 
+      logCheatingEvent(registrationId, "exit_fullscreen");
+      setWarningCount((prev) => prev + 1);
+
+      // re-enter fullscreen
+      document.documentElement.requestFullscreen?.();
+
+      // reset after delay (prevent loop)
+      setTimeout(() => {
+        fullscreenExitRef.current = false;
+      }, 3000);
+    }
+  };
+
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  return () =>
+    document.removeEventListener("fullscreenchange", handleFullscreenChange);
+}, [registrationId, isVisible, examSubmitted]);
   // Anti-cheat: Tab visibility change (switching tabs)
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -191,7 +201,7 @@ export function ExamInterface({
         setIsVisible(false);
         logCheatingEvent(registrationId, "tab_switch");
         setWarningCount(prev => prev + 1);
-        alert("Tab switching is not allowed during the exam!");
+        console.warn("Cheating detected");
       } else {
         setIsVisible(true);
       }
@@ -206,7 +216,7 @@ export function ExamInterface({
     const handleBlur = () => {
       logCheatingEvent(registrationId, "window_blur");
       setWarningCount(prev => prev + 1);
-      alert("Please stay on the exam window!");
+      console.warn("Cheating detected");
     };
 
     window.addEventListener("blur", handleBlur);
@@ -216,7 +226,7 @@ export function ExamInterface({
   // Auto-submit if too many warnings (5 warnings)
   useEffect(() => {
     if (warningCount >= 5) {
-      alert("Too many cheating attempts! Your exam will be submitted automatically.");
+      console.warn("Cheating detected");
       handleSubmit();
     }
   }, [warningCount]);
@@ -254,18 +264,18 @@ export function ExamInterface({
 
       if (result.success) {
         localStorage.removeItem(`exam_${registrationId}_answers`);
-        
+
         // Exit fullscreen
         if (document.fullscreenElement) {
           await document.exitFullscreen();
         }
-        
+
         router.push("/thank-you");
       } else {
-        alert(result.error || "Failed to submit exam");
+        console.warn("Cheating detected");
       }
     } catch (error) {
-      alert("Something went wrong");
+      console.warn("Cheating detected");
     } finally {
       setSubmitting(false);
       setShowConfirm(false);
@@ -332,13 +342,12 @@ export function ExamInterface({
                   <button
                     key={q.id}
                     onClick={() => setCurrentQuestionIndex(idx)}
-                    className={`w-10 h-10 rounded-lg font-medium transition ${
-                      currentQuestionIndex === idx
+                    className={`w-10 h-10 rounded-lg font-medium transition ${currentQuestionIndex === idx
                         ? "bg-red-600 text-white"
                         : answers[q.id]
-                        ? "bg-green-100 text-green-700 border border-green-300"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
+                          ? "bg-green-100 text-green-700 border border-green-300"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
                   >
                     {idx + 1}
                   </button>
