@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Eye, Calendar, Building2, Search, Filter } from "lucide-react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -203,9 +204,12 @@ export function HeroSection({ allExams }: HeroSectionProps) {
               <Eye className="h-4 w-4" />
               <span>{selectedExam?.isLive ? "Live now - Open for participation" : "Upcoming - Register to participate"}</span>
             </div>
+            <Link href={selectedExam?.isLive ? "/join" : "#GetNotified"} className="text-blue-600 hover:underline flex items-center gap-1">
+              
             <button className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition-all mt-4">
               {selectedExam?.isLive ? "Join Exam Now" : "Get Notified"}
             </button>
+            </Link>
           </div>
         </DialogContent>
       </Dialog>
