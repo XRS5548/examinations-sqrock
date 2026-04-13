@@ -16,6 +16,8 @@ import { HeroSection } from "@/websiteComponents/home/HeroSection";
 import { Navbar } from "@/websiteComponents/home/Navbar";
 import { NewsTicker } from "@/websiteComponents/home/NewsTicker";
 import { Footer } from "react-day-picker";
+export const dynamic = "force-dynamic"
+
 
 
 export default async function HomePage() {
@@ -26,6 +28,7 @@ export default async function HomePage() {
   const articles = await getArticles();
   const resultExams = await getResultExams();
   const companies = await getCompanies();
+  
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
