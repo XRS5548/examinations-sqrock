@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { createStudent } from "@/actions/students"; 
 import { toast } from "sonner";
 
@@ -32,7 +24,7 @@ const studentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().optional(),
-  dob: z.date().optional(),
+  dob: z.string().optional(),
 });
 
 type FormData = z.infer<typeof studentSchema>;
@@ -40,13 +32,11 @@ type FormData = z.infer<typeof studentSchema>;
 export function AddStudentDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [date, setDate] = useState<Date>();
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(studentSchema),
@@ -54,7 +44,7 @@ export function AddStudentDialog() {
       name: "",
       email: "",
       phone: "",
-      dob: undefined,
+      dob: "",
     },
   });
 
@@ -65,7 +55,7 @@ export function AddStudentDialog() {
       formData.append("name", data.name);
       if (data.email) formData.append("email", data.email);
       if (data.phone) formData.append("phone", data.phone);
-      if (data.dob) formData.append("dob", data.dob.toISOString());
+      if (data.dob) formData.append("dob", data.dob);
 
       const result = await createStudent(formData);
 
@@ -73,7 +63,6 @@ export function AddStudentDialog() {
         toast.success("Student added successfully");
         setOpen(false);
         reset();
-        setDate(undefined);
         window.location.reload();
       } else {
         toast.error(result.error?.toString() || "Failed to add student");
@@ -143,33 +132,13 @@ export function AddStudentDialog() {
           </div>
 
           <div className="space-y-2">
-            <Label>Date of Birth</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                  disabled={loading}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(newDate) => {
-                    setDate(newDate);
-                    setValue("dob", newDate);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label htmlFor="dob">Date of Birth</Label>
+            <Input
+              id="dob"
+              type="date"
+              {...register("dob")}
+              disabled={loading}
+            />
             {errors.dob && (
               <p className="text-sm text-red-500">{errors.dob.message}</p>
             )}

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { ProfileForm } from "./ProfileForm";
 import { CompanyForm } from "./CompanyForm";
 import { Settings, User, Building2 } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();

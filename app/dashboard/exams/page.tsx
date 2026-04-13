@@ -5,6 +5,8 @@ import { exams } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { ExamsTable } from "@/pagecomponents/exams/ExamsTable"; 
 import { CreateExamDialog } from "@/pagecomponents/exams/CreateExamDialog";
+export const dynamic = 'force-dynamic';
+
 
 export default async function ExamsPage() {
   const companyId = 1; // TODO: Get from session

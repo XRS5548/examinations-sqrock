@@ -7,6 +7,7 @@ import { QuickActions } from "./QuickActions";
 import { RecentExams } from "./RecentExams";
 import { RecentStudents } from "./RecentStudents";
 import { AlertCircle } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const company = await getUserCompany();

@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,13 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { updateStudent } from "@/actions/students"; 
 import { toast } from "sonner";
 
@@ -31,7 +23,7 @@ const studentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().optional(),
-  dob: z.date().optional(),
+  dob: z.string().optional(),
 });
 
 type FormData = z.infer<typeof studentSchema>;
@@ -56,13 +48,11 @@ export function EditStudentDialog({
   onStudentUpdated,
 }: EditStudentDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [date, setDate] = useState<Date>();
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(studentSchema),
@@ -70,13 +60,11 @@ export function EditStudentDialog({
 
   useEffect(() => {
     if (student) {
-      const studentDob = student.dob ? new Date(student.dob) : undefined;
-      setDate(studentDob);
       reset({
         name: student.name || "",
         email: student.email || "",
         phone: student.phone || "",
-        dob: studentDob,
+        dob: student.dob ? new Date(student.dob).toISOString().split("T")[0] : "",
       });
     }
   }, [student, reset]);
@@ -91,7 +79,7 @@ export function EditStudentDialog({
       formData.append("name", data.name);
       if (data.email) formData.append("email", data.email);
       if (data.phone) formData.append("phone", data.phone);
-      if (data.dob) formData.append("dob", data.dob.toISOString());
+      if (data.dob) formData.append("dob", data.dob);
 
       const result = await updateStudent(formData);
 
@@ -161,33 +149,13 @@ export function EditStudentDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Date of Birth</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                  disabled={loading}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(newDate) => {
-                    setDate(newDate);
-                    setValue("dob", newDate);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label htmlFor="dob">Date of Birth</Label>
+            <Input
+              id="dob"
+              type="date"
+              {...register("dob")}
+              disabled={loading}
+            />
             {errors.dob && (
               <p className="text-sm text-red-500">{errors.dob.message}</p>
             )}

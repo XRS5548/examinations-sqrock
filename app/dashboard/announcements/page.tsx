@@ -7,6 +7,7 @@ import { getUserCompany } from "@/actions/company";
 import { AnnouncementsTable } from "./AnnouncementsTable"; 
 import { CreateAnnouncementDialog } from "./CreateAnnouncementDialog"; 
 import { Megaphone } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function AnnouncementsPage() {
   const company = await getUserCompany();

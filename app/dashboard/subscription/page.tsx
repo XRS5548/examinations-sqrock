@@ -7,6 +7,7 @@ import { getUserCompany } from "@/actions/company";
 import { CurrentPlanCard } from "./CurrentPlanCard"; 
 import { PlansGrid } from "./PlansGrid";
 import { CreditCard } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function SubscriptionPage() {
   const company = await getUserCompany();

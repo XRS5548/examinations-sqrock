@@ -6,6 +6,7 @@ import { eq, desc } from "drizzle-orm";
 import { StudentsTable } from "./StudentsTable"; 
 import { AddStudentDialog } from "./AddStudentDialog";
 import { getUserCompany } from "@/actions/company";
+export const dynamic = 'force-dynamic';
 
 export default async function StudentsPage() {
   const company = await getUserCompany();

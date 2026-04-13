@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { BookOpen } from "lucide-react";
 import { CreateArticleDialog } from "./CreateArticleDialog";
 import { ArticlesTable } from "./ArticlesTable";
+export const dynamic = 'force-dynamic';
 
 export default async function ArticlesPage() {
   const user = await getCurrentUser();
