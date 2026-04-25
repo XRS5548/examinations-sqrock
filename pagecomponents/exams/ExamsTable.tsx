@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { MoreHorizontal, Play, Pause, Eye } from "lucide-react";
+import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -22,9 +22,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EditExamDialog } from "./EditExamDialog"; 
 import { DeleteExamDialog } from "./DeleteExamDialog"; 
-import { toggleExamLive } from "@/actions/exams";
+import { toggleExamLive, toggleResultAnnounced } from "@/actions/exams";
 import { toast } from "sonner";
 
 export type Exam = {
@@ -35,6 +45,7 @@ export type Exam = {
   durationMinutes: number | null;
   totalMarks: number | null;
   isLive: boolean;
+  resultAnnounced: boolean;
   syllabusPdf: string | null;
   coverImage: string | null;
 };
@@ -47,6 +58,8 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
   const [exams, setExams] = useState(initialExams);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [deletingExam, setDeletingExam] = useState<Exam | null>(null);
+  const [resultDialogOpen, setResultDialogOpen] = useState(false);
+  const [selectedExamForResult, setSelectedExamForResult] = useState<Exam | null>(null);
 
   const handleToggleLive = async (id: number, currentStatus: boolean) => {
     try {
@@ -62,6 +75,29 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
     } catch (error) {
       toast.error("Something went wrong");
     }
+  };
+
+  const handleToggleResult = async (id: number, currentStatus: boolean) => {
+    try {
+      const result = await toggleResultAnnounced(id, !currentStatus);
+      if (result.success) {
+        setExams(exams.map(exam => 
+          exam.id === id ? { ...exam, resultAnnounced: !currentStatus } : exam
+        ));
+        toast.success(`Results ${!currentStatus ? 'announced' : 'unannounced'} successfully`);
+        setResultDialogOpen(false);
+        setSelectedExamForResult(null);
+      } else {
+        toast.error(result.error || "Failed to update result status");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    }
+  };
+
+  const openResultDialog = (exam: Exam) => {
+    setSelectedExamForResult(exam);
+    setResultDialogOpen(true);
   };
 
   if (exams.length === 0) {
@@ -89,6 +125,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
               <TableHead>Duration</TableHead>
               <TableHead>Total Marks</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Results</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -113,6 +150,15 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                   <Badge variant={exam.isLive ? "default" : "secondary"}>
                     {exam.isLive ? "Live" : "Not Live"}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {exam.resultAnnounced ? (
+                    <Badge className="bg-green-600">Results Declared</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                      Pending
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -139,6 +185,11 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                             Make Live
                           </>
                         )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => openResultDialog(exam)}>
+                        <Trophy className="mr-2 h-4 w-4" />
+                        {exam.resultAnnounced ? "Unpublish Results" : "Publish Results"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
@@ -175,6 +226,44 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
           setDeletingExam(null);
         }}
       />
+
+      {/* Result Announcement Confirmation Dialog */}
+      <AlertDialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedExamForResult?.resultAnnounced ? "Unpublish Results" : "Publish Results"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExamForResult?.resultAnnounced ? (
+                <>
+                  Are you sure you want to unpublish results for <strong>{selectedExamForResult?.name}</strong>?
+                  This will make results hidden from students again.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to publish results for <strong>{selectedExamForResult?.name}</strong>?
+                  <br /><br />
+                  <strong>Note:</strong> Please ensure all answers have been evaluated before publishing results.
+                  Once published, students will be able to view their results.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedExamForResult && handleToggleResult(
+                selectedExamForResult.id, 
+                selectedExamForResult.resultAnnounced
+              )}
+              className={selectedExamForResult?.resultAnnounced ? "bg-yellow-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"}
+            >
+              {selectedExamForResult?.resultAnnounced ? "Unpublish Results" : "Publish Results"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

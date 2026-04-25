@@ -15,7 +15,7 @@ import { ExamStatusSection } from "@/websiteComponents/home/ExamStatusSection";
 import { HeroSection } from "@/websiteComponents/home/HeroSection";
 import { Navbar } from "@/websiteComponents/home/Navbar";
 import { NewsTicker } from "@/websiteComponents/home/NewsTicker";
-import { Footer } from "react-day-picker";
+import { Footer } from "@/websiteComponents/home/Footer"; 
 export const dynamic = "force-dynamic"
 
 

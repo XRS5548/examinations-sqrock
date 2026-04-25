@@ -384,3 +384,57 @@ export async function getCurrentCompany() {
     return null;
   }
 }
+
+
+// actions/exams.ts (add this function)
+// actions/exams.ts (fixed toggleResultAnnounced function)
+export async function toggleResultAnnounced(id: number, resultAnnounced: boolean) {
+  try {
+    // Get current authenticated user
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Get user's company
+    const company = await getUserCompany();
+    if (!company) {
+      return { success: false, error: "No company found" };
+    }
+
+    // Check if exam exists and belongs to user's company
+    const existingExams = await db.select()
+      .from(exams)
+      .where(eq(exams.id, id))
+      .limit(1);
+
+    if (existingExams.length === 0) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    const exam = existingExams[0];
+    if (exam.companyId !== company.id) {
+      return { success: false, error: "Unauthorized: Exam does not belong to your company" };
+    }
+
+    // Toggle result announced status
+    const updatedExams = await db.update(exams)
+      .set({ 
+        resultAnnounced: resultAnnounced,
+      })
+      .where(eq(exams.id, id))
+      .returning();
+
+    if (!updatedExams || updatedExams.length === 0) {
+      return { success: false, error: "Failed to update result status" };
+    }
+
+    revalidatePath("/dashboard/exams");
+    revalidatePath(`/dashboard/exams/results/${id}`);
+    
+    return { success: true, exam: updatedExams[0] };
+  } catch (error) {
+    console.error("Toggle result announced error:", error);
+    return { success: false, error: "Failed to toggle result status" };
+  }
+}
