@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal, Search, Trash2, CheckSquare, Square, Download } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,8 +24,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { DeleteStudentDialog } from "./DeleteStudentDialog"; 
+import { bulkDeleteStudents, exportStudentsToCSV } from "@/actions/students";
 import { toast } from "sonner";
 
 type Student = {
@@ -45,12 +57,80 @@ export function StudentsTable({ initialStudents }: StudentsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredStudents = students.filter(student => 
     student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.phone?.includes(searchTerm)
   );
+
+  const handleSelectAll = () => {
+    if (selectedStudents.size === filteredStudents.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredStudents.map(s => s.id)));
+    }
+  };
+
+  const handleSelectStudent = (studentId: number) => {
+    const newSelected = new Set(selectedStudents);
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId);
+    } else {
+      newSelected.add(studentId);
+    }
+    setSelectedStudents(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const studentIds = Array.from(selectedStudents);
+      const result = await bulkDeleteStudents(studentIds);
+      
+      if (result.success) {
+        toast.success(`Successfully deleted ${result.count} students`);
+        setStudents(students.filter(s => !selectedStudents.has(s.id)));
+        setSelectedStudents(new Set());
+        setBulkDeleteDialogOpen(false);
+      } else {
+        toast.error(result.error || "Failed to delete students");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const result = await exportStudentsToCSV();
+      if (result.success) {
+        // Download the file
+        const blob = new Blob([result.data!], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `students_export_${format(new Date(), "yyyy-MM-dd")}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast.success("Students exported successfully");
+      } else {
+        toast.error(result.error || "Failed to export students");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    }
+  };
+
+  const isAllSelected = filteredStudents.length > 0 && selectedStudents.size === filteredStudents.length;
+  const isSomeSelected = selectedStudents.size > 0;
 
   if (students.length === 0) {
     return (
@@ -81,18 +161,43 @@ export function StudentsTable({ initialStudents }: StudentsTableProps) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+        {/* Top Bar with Search, Bulk Actions, and Export */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {filteredStudents.length} of {students.length} students
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {filteredStudents.length} of {students.length} students
+          <div className="flex gap-2">
+            {isSomeSelected && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected ({selectedStudents.size})
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
           </div>
         </div>
 
@@ -100,6 +205,13 @@ export function StudentsTable({ initialStudents }: StudentsTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
@@ -110,7 +222,17 @@ export function StudentsTable({ initialStudents }: StudentsTableProps) {
             </TableHeader>
             <TableBody>
               {filteredStudents.map((student) => (
-                <TableRow key={student.id}>
+                <TableRow 
+                  key={student.id}
+                  className={selectedStudents.has(student.id) ? "bg-muted/50" : ""}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedStudents.has(student.id)}
+                      onCheckedChange={() => handleSelectStudent(student.id)}
+                      aria-label={`Select ${student.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{student.name || "—"}</TableCell>
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.phone || "—"}</TableCell>
@@ -152,6 +274,29 @@ export function StudentsTable({ initialStudents }: StudentsTableProps) {
             </TableBody>
           </Table>
         </div>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Multiple Students</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedStudents.size} selected student(s)? 
+                This action cannot be undone. All exam registrations and answers for these students will also be deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? "Deleting..." : `Delete ${selectedStudents.size} Student(s)`}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <EditStudentDialog

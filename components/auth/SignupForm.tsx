@@ -62,7 +62,7 @@ export function SignupForm() {
 
       if (result.success) {
         toast.success("Account created successfully! Redirecting...");
-        router.push("/dashboard");
+        router.push("/dashboard/create-company");
         router.refresh();
       } else {
         toast.error(result.error?.toString() || "Failed to create account");

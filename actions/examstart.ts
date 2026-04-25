@@ -7,17 +7,17 @@ import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+// actions/exam.ts (updated verifyStudent function)
 const verifySchema = z.object({
   rollNumber: z.string().min(1),
-  dob: z.string().min(1),
+  email: z.string().email("Invalid email address"),
 });
 
-// actions/exam.ts (updated verifyStudent function)
 export async function verifyStudent(formData: FormData) {
   try {
     const rawData = {
       rollNumber: formData.get("rollNumber") as string,
-      dob: formData.get("dob") as string,
+      email: formData.get("email") as string,
     };
 
     const validated = verifySchema.parse(rawData);
@@ -72,7 +72,7 @@ export async function verifyStudent(formData: FormData) {
       return { success: false, error: "Student not associated with this registration" };
     }
 
-    // Find student and verify DOB
+    // Find student and verify email
     const studentList = await db
       .select()
       .from(students)
@@ -84,10 +84,10 @@ export async function verifyStudent(formData: FormData) {
     }
 
     const student = studentList[0];
-    const studentDob = student.dob ? new Date(student.dob).toISOString().split("T")[0] : null;
 
-    if (studentDob !== validated.dob) {
-      return { success: false, error: "Invalid date of birth" };
+    // Verify email (case insensitive)
+    if (student.email?.toLowerCase() !== validated.email.toLowerCase()) {
+      return { success: false, error: "Invalid email address" };
     }
 
     // Update registration status to in_progress
@@ -107,7 +107,7 @@ export async function verifyStudent(formData: FormData) {
   } catch (error) {
     console.error("Verify student error:", error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error};
+      return { success: false, error: error };
     }
     return { success: false, error: "Failed to verify student" };
   }

@@ -3,12 +3,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyStudent } from "@/actions/examstart";
+import { verifyStudent } from "@/actions/examstart"; 
 
 export function JoinForm() {
   const router = useRouter();
   const [rollNumber, setRollNumber] = useState("");
-  const [dob, setDob] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,14 +20,14 @@ export function JoinForm() {
     try {
       const formData = new FormData();
       formData.append("rollNumber", rollNumber);
-      formData.append("dob", dob);
+      formData.append("email", email);
 
       const result = await verifyStudent(formData);
 
       if (result.success) {
         router.push(`/start?examId=${result.examId}&registrationId=${result.registrationId}`);
       } else {
-        setError(result.error?.toString() || "Invalid credentials. Please check your Roll Number and Date of Birth.");
+        setError(result.error?.toString() || "Invalid credentials. Please check your Roll Number and Email.");
       }
     } catch (error) {
       setError("Something went wrong. Please try again.");
@@ -64,15 +64,16 @@ export function JoinForm() {
         </div>
 
         <div>
-          <label htmlFor="dob" className="block text-sm font-medium text-gray-700 mb-2">
-            Date of Birth
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
           </label>
           <input
-            type="date"
-            id="dob"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
+            type="email"
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
+            placeholder="student@example.com"
             required
             disabled={loading}
           />

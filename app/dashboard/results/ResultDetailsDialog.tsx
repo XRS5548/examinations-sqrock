@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ManualCheckDialog } from "./ManualCheckDialog"; 
 import { getStudentAnswers, evaluateMCQForRegistration } from "@/actions/results2";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Edit } from "lucide-react";
 
 type Registration = {
   id: number;
@@ -58,6 +58,7 @@ export function ResultDetailsDialog({
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<Answer | null>(null);
+  const [isManualCheckOpen, setIsManualCheckOpen] = useState(false);
 
   useEffect(() => {
     if (open && registration) {
@@ -109,6 +110,17 @@ export function ResultDetailsDialog({
     }
   };
 
+  const handleManualCheckSave = async () => {
+    // Close dialog first
+    setIsManualCheckOpen(false);
+    setSelectedAnswer(null);
+    
+    // Then reload only the specific answer or all answers
+    await loadAnswers();
+    onUpdate();
+    toast.success("Subjective answer evaluated successfully");
+  };
+
   const getStatusIcon = (answer: Answer) => {
     if (answer.questionType === "subjective") {
       if (answer.marksAwarded !== null && answer.marksAwarded > 0) {
@@ -131,7 +143,7 @@ export function ResultDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-[100vw] min-w-[40vw] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Exam Results Details</DialogTitle>
           <DialogDescription>
@@ -179,7 +191,7 @@ export function ResultDetailsDialog({
           ) : (
             <div className="space-y-4">
               {answers.map((answer, index) => (
-                <Card key={answer.id}>
+                <Card key={answer.id} className={answer.questionType === "subjective" ? "border-yellow-200" : ""}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3">
@@ -193,20 +205,33 @@ export function ResultDetailsDialog({
                               {answer.questionType === "mcq" ? "MCQ" : "Subjective"}
                             </Badge>
                             <Badge variant="outline">{answer.marks} marks</Badge>
-                            {answer.marksAwarded !== null && (
+                            {answer.marksAwarded !== null && answer.questionType === "subjective" && (
                               <Badge className={answer.marksAwarded > 0 ? "bg-green-600" : "bg-red-600"}>
                                 Awarded: {answer.marksAwarded}
                               </Badge>
                             )}
+                            {answer.isCorrect === true && answer.questionType === "mcq" && (
+                              <Badge className="bg-green-600">Correct</Badge>
+                            )}
+                            {answer.isCorrect === false && answer.questionType === "mcq" && (
+                              <Badge variant="destructive">Incorrect</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
-                      {answer.questionType === "subjective" && answer.marksAwarded === null && (
+                      {/* Always show edit button for subjective questions */}
+                      {answer.questionType === "subjective" && (
                         <Button
                           size="sm"
-                          onClick={() => setSelectedAnswer(answer)}
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedAnswer(answer);
+                            setIsManualCheckOpen(true);
+                          }}
+                          className="gap-1"
                         >
-                          Check Manually
+                          <Edit className="h-3 w-3" />
+                          {answer.marksAwarded !== null ? "Re-evaluate" : "Check"}
                         </Button>
                       )}
                     </div>
@@ -232,19 +257,28 @@ export function ResultDetailsDialog({
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="text-sm">
                           <span className="font-medium">Student's Answer:</span>
                         </div>
-                        <div className="p-3 bg-muted rounded-lg">
+                        <div className="p-3 bg-muted rounded-lg max-h-[200px] overflow-y-auto">
                           {answer.answerText || "No answer provided"}
                         </div>
                         {answer.marksAwarded !== null && (
-                          <div className="text-sm">
-                            <span className="font-medium">Marks Awarded:</span>{" "}
-                            <span className={answer.marksAwarded > 0 ? "text-green-600" : "text-red-600"}>
-                              {answer.marksAwarded} / {answer.marks}
-                            </span>
+                          <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                            <div className="text-sm">
+                              <span className="font-medium">Marks Awarded:</span>{" "}
+                              <span className={answer.marksAwarded > 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                                {answer.marksAwarded} / {answer.marks}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">Status:</span>{" "}
+                              <span className={answer.marksAwarded > 0 ? "text-green-600" : "text-red-600"}>
+                                {answer.marksAwarded === answer.marks ? "Full Marks" : 
+                                 answer.marksAwarded > 0 ? "Partial Marks" : "No Marks"}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -259,13 +293,16 @@ export function ResultDetailsDialog({
 
       {selectedAnswer && (
         <ManualCheckDialog
+          key={selectedAnswer.id} // Add key to force re-render when answer changes
           answer={selectedAnswer}
-          open={!!selectedAnswer}
-          onOpenChange={() => setSelectedAnswer(null)}
-          onSave={() => {
-            loadAnswers();
-            onUpdate();
+          open={isManualCheckOpen}
+          onOpenChange={(open) => {
+            setIsManualCheckOpen(open);
+            if (!open) {
+              setSelectedAnswer(null);
+            }
           }}
+          onSave={handleManualCheckSave}
         />
       )}
     </Dialog>
