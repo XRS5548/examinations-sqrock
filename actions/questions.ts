@@ -176,3 +176,188 @@ export async function deleteQuestion(id: number) {
     return { success: false, error: "Failed to delete question" };
   }
 }
+
+
+// actions/questions.ts (add this function with proper types)
+import { parse } from "csv-parse/sync";
+
+
+import { options as optionsTable } from "@/db/schema";
+
+// actions/questions.ts (updated bulkImportQuestions function)
+
+interface QuestionRow {
+  "Question Type (mcq/subjective)"?: string;
+  "Question Type"?: string;
+  "Question Text"?: string;
+  Question?: string;
+  Marks?: string;
+  "Option 1"?: string;
+  "Option 2"?: string;
+  "Option 3"?: string;
+  "Option 4"?: string;
+  "Correct Option (1-4)"?: string;
+  "Correct Option"?: string;
+  Answer?: string;
+}
+
+
+export async function bulkImportQuestions(formData: FormData) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const company = await getUserCompany();
+    if (!company) {
+      return { success: false, error: "No company found" };
+    }
+
+    const examId = parseInt(formData.get("examId") as string);
+    if (isNaN(examId)) {
+      return { success: false, error: "Invalid exam ID" };
+    }
+
+    const file = formData.get("file") as File;
+    if (!file) {
+      return { success: false, error: "No file uploaded" };
+    }
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const content = buffer.toString('utf-8');
+    
+    // Parse CSV with more flexible options
+    const questionsData = parse(content, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      relax_quotes: true,
+      relax_column_count: true,
+      quote: '"',
+      escape: '"',
+      delimiter: ',',
+    }) as QuestionRow[];
+
+    if (questionsData.length === 0) {
+      return { success: false, error: "No data found in file" };
+    }
+
+    if (questionsData.length > 500) {
+      return { success: false, error: "Maximum 500 questions per import" };
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < questionsData.length; i++) {
+      const row = questionsData[i];
+      try {
+        const questionType = (row["Question Type (mcq/subjective)"] || row["Question Type"] || "").toLowerCase();
+        const questionText = row["Question Text"] || row["Question"];
+        const marks = row["Marks"];
+        
+        if (!questionText || !marks) {
+          errorCount++;
+          errors.push(`Row ${i + 2}: Missing question text or marks`);
+          continue;
+        }
+
+        if (questionType === "mcq") {
+          const options = [
+            row["Option 1"],
+            row["Option 2"],
+            row["Option 3"],
+            row["Option 4"],
+          ].filter((opt): opt is string => !!opt && opt.trim().length > 0);
+          
+          if (options.length < 2) {
+            errorCount++;
+            errors.push(`Row ${i + 2}: At least 2 options required for MCQ`);
+            continue;
+          }
+
+          const correctOption = parseInt(row["Correct Option (1-4)"] || row["Correct Option"] || "0");
+          if (isNaN(correctOption) || correctOption < 1 || correctOption > options.length) {
+            errorCount++;
+            errors.push(`Row ${i + 2}: Invalid correct option`);
+            continue;
+          }
+
+          // Insert question
+          const [newQuestion] = await db.insert(questions).values({
+            examId: examId,
+            question: questionText,
+            questionType: "mcq",
+            marks: parseInt(marks),
+            createdAt: new Date(),
+          }).returning();
+
+          if (!newQuestion) {
+            errorCount++;
+            errors.push(`Row ${i + 2}: Failed to insert question`);
+            continue;
+          }
+
+          // Insert options
+          for (let j = 0; j < options.length; j++) {
+            await db.insert(optionsTable).values({
+              questionId: newQuestion.id,
+              optionText: options[j],
+              isCorrect: j + 1 === correctOption, // This returns boolean
+            });
+          }
+          
+          successCount++;
+        } 
+        else if (questionType === "subjective") {
+          // Insert subjective question
+          const [newQuestion] = await db.insert(questions).values({
+            examId: examId,
+            question: questionText,
+            questionType: "subjective",
+            marks: parseInt(marks),
+            createdAt: new Date(),
+          }).returning();
+
+          if (!newQuestion) {
+            errorCount++;
+            errors.push(`Row ${i + 2}: Failed to insert question`);
+            continue;
+          }
+          
+          successCount++;
+        }
+        else {
+          errorCount++;
+          errors.push(`Row ${i + 2}: Invalid question type (must be 'mcq' or 'subjective')`);
+        }
+      } catch (error) {
+        errorCount++;
+        errors.push(`Row ${i + 2}: ${error}`);
+      }
+    }
+
+    revalidatePath(`/dashboard/exams/questions/${examId}`);
+
+    if (successCount > 0) {
+      return { 
+        success: true, 
+        count: successCount,
+        message: `Imported ${successCount} questions successfully. ${errorCount} failed.`,
+        errors: errors.slice(0, 10)
+      };
+    } else {
+      return { 
+        success: false, 
+        error: "No questions were imported. Please check your file format.",
+        errors 
+      };
+    }
+  } catch (error) {
+    console.error("Bulk import questions error:", error);
+    return { success: false, error: "Failed to import questions" };
+  }
+}
