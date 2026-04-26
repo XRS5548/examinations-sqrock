@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
   // Redirect logic for authenticated users without company
   if (isValidToken && !hasCompany && !isCreateCompanyRoute && pathname !== "/logout") {
     // Redirect to create company page if trying to access any other page
-    return NextResponse.redirect(new URL("/create-company", request.url));
+    return NextResponse.redirect(new URL("/dashboard/create-company", request.url));
   }
   
   // Redirect logic for protected routes without authentication
@@ -74,7 +74,7 @@ export const config = {
     "/",
     "/login", 
     "/signup", 
-    "/create-company",
+    "/dashboard/create-company",
     "/dashboard/:path*",
   ],
 };
