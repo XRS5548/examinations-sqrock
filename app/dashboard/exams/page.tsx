@@ -5,11 +5,33 @@ import { exams } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { ExamsTable } from "@/pagecomponents/exams/ExamsTable"; 
 import { CreateExamDialog } from "@/pagecomponents/exams/CreateExamDialog";
+import { getCurrentUser } from "@/lib/auth";
+import { getUserCompany } from "@/actions/company";
+
 export const dynamic = 'force-dynamic';
 
-
 export default async function ExamsPage() {
-  const companyId = 1; // TODO: Get from session
+  // Get current user
+  const user = await getCurrentUser();
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Please login to view exams</p>
+      </div>
+    );
+  }
+
+  // Get user's company
+  const company = await getUserCompany();
+  if (!company) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Please create a company first</p>
+      </div>
+    );
+  }
+
+  const companyId = company.id;
   
   // Fetch exams from database
   const examsListRaw = await db.select()
@@ -27,8 +49,8 @@ export default async function ExamsPage() {
     examDate: exam.examDate,
     durationMinutes: exam.durationMinutes,
     totalMarks: exam.totalMarks,
-    isLive: exam.isLive ?? false, // Convert null to false
-    resultAnnounced: exam.resultAnnounced ?? false, // Convert null to false
+    isLive: exam.isLive ?? false,
+    resultAnnounced: exam.resultAnnounced ?? false,
     createdAt: exam.createdAt,
   }));
 
