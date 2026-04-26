@@ -15,7 +15,7 @@ export async function proxy(request: NextRequest) {
   // Check if it's a public route
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-  const isCreateCompanyRoute = pathname === "/create-company";
+  const isCreateCompanyRoute = pathname === "/dashboard/create-company";
   
   // Get token from cookies
   const token = request.cookies.get("auth_token")?.value;
