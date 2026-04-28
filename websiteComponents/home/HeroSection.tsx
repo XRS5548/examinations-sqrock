@@ -1,15 +1,16 @@
-// components/home/HeroSection.tsx
+// websiteComponents/home/HeroSection.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Eye, Calendar, Building2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Calendar, Building2, Search, ChevronLeft, ChevronRight, Lock, AlertCircle, Bell } from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +20,11 @@ type Exam = {
   id: number;
   name: string | null;
   examDate: Date | null;
-  companyName: string | null;
-  isLive: boolean | null;
+  isLive?: boolean | null;
+  isClosed?: boolean | null;
+  resultAnnounced?: boolean | null;
+  description?: string | null;
+  companyName?: string | null;  // ADD THIS - companyName property
 };
 
 interface HeroSectionProps {
@@ -32,7 +36,7 @@ const ITEMS_PER_PAGE = 5;
 export function HeroSection({ allExams }: HeroSectionProps) {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "live" | "upcoming">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "live" | "upcoming" | "closed">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter exams based on search and status
@@ -42,10 +46,14 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                            exam.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
       
       if (filterStatus === "live") {
-        return matchesSearch && exam.isLive === true;
+        return matchesSearch && exam.isLive === true && exam.isClosed === false;
       }
       if (filterStatus === "upcoming") {
-        return matchesSearch && exam.isLive === false && exam.examDate && new Date(exam.examDate) > new Date();
+        return matchesSearch && exam.isLive === false && exam.isClosed === false && 
+               exam.examDate && new Date(exam.examDate) > new Date();
+      }
+      if (filterStatus === "closed") {
+        return matchesSearch && exam.isClosed === true;
       }
       return matchesSearch;
     });
@@ -69,10 +77,35 @@ export function HeroSection({ allExams }: HeroSectionProps) {
     setCurrentPage(1);
   };
 
-  const truncateText = (text: string | null, maxLength: number = 60) => {
-    if (!text) return "No description";
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
+  const getExamStatus = (exam: Exam) => {
+    if (exam.isClosed) return { label: "Closed", variant: "destructive" as const, icon: Lock };
+    if (exam.isLive) return { label: "Live Now", variant: "default" as const, icon: Eye };
+    return { label: "Upcoming", variant: "secondary" as const, icon: Calendar };
+  };
+
+  const getActionButton = (exam: Exam) => {
+    if (exam.isClosed) {
+      return {
+        text: "Exam Closed",
+        disabled: true,
+        variant: "secondary" as const,
+        icon: Lock
+      };
+    }
+    if (exam.isLive) {
+      return {
+        text: "Join Exam Now",
+        disabled: false,
+        variant: "default" as const,
+        icon: Eye
+      };
+    }
+    return {
+      text: "Get Notified",
+      disabled: false,
+      variant: "outline" as const,
+      icon: Bell
+    };
   };
 
   return (
@@ -92,16 +125,21 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                 Every Time.
               </h1>
               <p className="text-red-100 mb-8">
-                India's most trusted platform for exam preparation and management.
+                India&apos;s most trusted platform for exam preparation and management.
               </p>
-              <button className="bg-white text-red-600 px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition-all">
+              <Button 
+                variant="secondary" 
+                size="lg"
+                className="bg-white text-red-600 hover:bg-red-50"
+                onClick={() => document.getElementById("exams-section")?.scrollIntoView({ behavior: "smooth" })}
+              >
                 Explore Exams →
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Right Available Exams Panel */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden flex flex-col">
+          <div id="exams-section" className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Available Exams</h2>
               <p className="text-sm text-gray-500 mt-1">Browse through all available exams</p>
@@ -117,86 +155,97 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                     className="pl-9"
                   />
                 </div>
-                <div className="flex gap-1">
-                  <button
+                <div className="flex gap-1 flex-wrap">
+                  <Button
                     onClick={() => handleFilterChange("all")}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                      filterStatus === "all" 
-                        ? "bg-red-600 text-white" 
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                    }`}
+                    variant={filterStatus === "all" ? "default" : "outline"}
+                    size="sm"
+                    className={filterStatus === "all" ? "bg-red-600 hover:bg-red-700" : ""}
                   >
                     All
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleFilterChange("live")}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                      filterStatus === "live" 
-                        ? "bg-green-600 text-white" 
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                    }`}
+                    variant={filterStatus === "live" ? "default" : "outline"}
+                    size="sm"
+                    className={filterStatus === "live" ? "bg-green-600 hover:bg-green-700" : ""}
                   >
                     Live
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleFilterChange("upcoming")}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                      filterStatus === "upcoming" 
-                        ? "bg-yellow-600 text-white" 
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                    }`}
+                    variant={filterStatus === "upcoming" ? "default" : "outline"}
+                    size="sm"
+                    className={filterStatus === "upcoming" ? "bg-yellow-600 hover:bg-yellow-700" : ""}
                   >
                     Upcoming
-                  </button>
+                  </Button>
+                  <Button
+                    onClick={() => handleFilterChange("closed")}
+                    variant={filterStatus === "closed" ? "default" : "outline"}
+                    size="sm"
+                    className={filterStatus === "closed" ? "bg-gray-600 hover:bg-gray-700" : ""}
+                  >
+                    Closed
+                  </Button>
                 </div>
               </div>
             </div>
             
             <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-y-auto max-h-[500px]">
               {paginatedExams.length > 0 ? (
-                paginatedExams.map((exam) => (
-                  <div 
-                    key={exam.id} 
-                    className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group"
-                    onClick={() => setSelectedExam(exam)}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-1">
-                        {exam.name || "Untitled Exam"}
-                      </h3>
-                      {exam.isLive ? (
-                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                          Live Now
+                paginatedExams.map((exam) => {
+                  const status = getExamStatus(exam);
+                  const StatusIcon = status.icon;
+                  
+                  return (
+                    <div 
+                      key={exam.id} 
+                      className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group ${
+                        exam.isClosed ? 'opacity-75' : ''
+                      }`}
+                      onClick={() => setSelectedExam(exam)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-1">
+                          {exam.name || "Untitled Exam"}
+                        </h3>
+                        <Badge variant={status.variant}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {status.label}
                         </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          Upcoming
-                        </Badge>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center gap-1 truncate max-w-[200px]">
+                          <Building2 className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{exam.companyName || "Various Companies"}</span>
+                        </span>
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Calendar className="h-3 w-3" />
+                          {exam.examDate ? format(new Date(exam.examDate), "MMM dd, yyyy") : "Date TBA"}
+                        </span>
+                      </div>
+                      {exam.isClosed && (
+                        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                          <Lock className="h-3 w-3" />
+                          Registration closed for this exam
+                        </p>
                       )}
                     </div>
-                    <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center gap-1 truncate max-w-[200px]">
-                        <Building2 className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{exam.companyName || "Various Companies"}</span>
-                      </span>
-                      <span className="flex items-center gap-1 flex-shrink-0">
-                        <Calendar className="h-3 w-3" />
-                        {exam.examDate ? format(new Date(exam.examDate), "MMM dd, yyyy") : "Date TBA"}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="px-6 py-12 text-center text-gray-500">
-                  <div className="text-4xl mb-2">🔍</div>
-                  <p>{searchTerm ? "No exams match your search" : "No exams available at the moment"}</p>
+                  <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p className="font-medium">{searchTerm ? "No exams match your search" : "No exams available at the moment"}</p>
                   {searchTerm && (
-                    <button
+                    <Button
                       onClick={() => setSearchTerm("")}
-                      className="mt-2 text-red-600 hover:text-red-700 text-sm"
+                      variant="link"
+                      className="mt-2 text-red-600"
                     >
                       Clear search
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -210,13 +259,15 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                     Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredExams.length)} of {filteredExams.length} exams
                   </p>
                   <div className="flex gap-1">
-                    <button
+                    <Button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-7 p-0"
                     >
                       <ChevronLeft className="h-4 w-4" />
-                    </button>
+                    </Button>
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
@@ -231,27 +282,27 @@ export function HeroSection({ allExams }: HeroSectionProps) {
                         }
                         
                         return (
-                          <button
+                          <Button
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
-                            className={`w-7 h-7 text-xs rounded transition ${
-                              currentPage === pageNum
-                                ? "bg-red-600 text-white"
-                                : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
-                            }`}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 w-7 p-0 ${currentPage === pageNum ? 'bg-red-600 hover:bg-red-700' : ''}`}
                           >
                             {pageNum}
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
-                    <button
+                    <Button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-7 p-0"
                     >
                       <ChevronRight className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -265,25 +316,62 @@ export function HeroSection({ allExams }: HeroSectionProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl">{selectedExam?.name || "Exam Details"}</DialogTitle>
+            {selectedExam?.isClosed && (
+              <DialogDescription className="text-red-600 dark:text-red-400 flex items-center gap-2 mt-2">
+                <Lock className="h-4 w-4" />
+                This exam is currently closed for registration
+              </DialogDescription>
+            )}
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Building2 className="h-4 w-4 flex-shrink-0" />
+              <Building2 className="h-4 w-4 shrink-0" />
               <span className="break-words">{selectedExam?.companyName || "Various Companies"}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <Calendar className="h-4 w-4 shrink-0" />
               <span>{selectedExam?.examDate ? format(new Date(selectedExam.examDate), "PPP") : "Date to be announced"}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Eye className="h-4 w-4 flex-shrink-0" />
-              <span>{selectedExam?.isLive ? "Live now - Open for participation" : "Upcoming - Register to participate"}</span>
+              {selectedExam?.isClosed ? (
+                <>
+                  <Lock className="h-4 w-4" />
+                  <span>Exam is closed - No longer accepting submissions</span>
+                </>
+              ) : selectedExam?.isLive ? (
+                <>
+                  <Eye className="h-4 w-4 text-green-600" />
+                  <span>Live now - Open for participation</span>
+                </>
+              ) : (
+                <>
+                  <Calendar className="h-4 w-4 text-yellow-600" />
+                  <span>Upcoming - Register to participate</span>
+                </>
+              )}
             </div>
-            <Link href={selectedExam?.isLive ? "/join" : "#GetNotified"} className="w-full">
-              <button className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition-all mt-4">
-                {selectedExam?.isLive ? "Join Exam Now" : "Get Notified"}
-              </button>
-            </Link>
+            {selectedExam?.description && (
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {selectedExam.description}
+                </p>
+              </div>
+            )}
+            {selectedExam && (() => {
+              const action = getActionButton(selectedExam);
+              return (
+                <Link href={!selectedExam.isClosed && selectedExam.isLive ? "/join" : "#GetNotified"} className="w-full">
+                  <Button 
+                    className="w-full"
+                    variant={action.variant}
+                    disabled={action.disabled}
+                  >
+                    <action.icon className="h-4 w-4 mr-2" />
+                    {action.text}
+                  </Button>
+                </Link>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>

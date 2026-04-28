@@ -1,14 +1,13 @@
 // app/dashboard/exams/page.tsx
-import { Suspense } from "react";
+
+import { getUserCompany } from "@/actions/company";
 import { db } from "@/db";
 import { exams } from "@/db/schema";
-import { and, eq, desc } from "drizzle-orm";
-import { ExamsTable } from "@/pagecomponents/exams/ExamsTable"; 
-import { CreateExamDialog } from "@/pagecomponents/exams/CreateExamDialog";
 import { getCurrentUser } from "@/lib/auth";
-import { getUserCompany } from "@/actions/company";
-
-export const dynamic = 'force-dynamic';
+import { CreateExamDialog } from "@/pagecomponents/exams/CreateExamDialog";
+import { ExamsTable } from "@/pagecomponents/exams/ExamsTable";
+import { and, desc, eq } from "drizzle-orm";
+import { Suspense } from "react";
 
 export default async function ExamsPage() {
   // Get current user
@@ -50,6 +49,7 @@ export default async function ExamsPage() {
     durationMinutes: exam.durationMinutes,
     totalMarks: exam.totalMarks,
     isLive: exam.isLive ?? false,
+    isClosed: exam.isClosed ?? false,  // ADD THIS LINE
     resultAnnounced: exam.resultAnnounced ?? false,
     createdAt: exam.createdAt,
   }));

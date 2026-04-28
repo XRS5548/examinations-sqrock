@@ -1,22 +1,22 @@
-// actions/home.ts (updated)
+// actions/home.ts
 "use server";
 
 import { db } from "@/db";
 import { exams, announcements, articles, companies } from "@/db/schema";
-import { eq, desc, gt } from "drizzle-orm";
+import { eq, desc, gt, and } from "drizzle-orm";
 
-// New function to fetch ALL exams for hero section
-// actions/home.ts (update getAllExams function)
+// Get ALL exams for hero section (including closed ones but with filter)
 export async function getAllExams() {
   try {
     const allExams = await db
       .select({
         id: exams.id,
         name: exams.name,
-        description: exams.description, // Add description field
+        description: exams.description,
         examDate: exams.examDate,
         durationMinutes: exams.durationMinutes,
         isLive: exams.isLive,
+        isClosed: exams.isClosed,
         companyName: companies.name,
       })
       .from(exams)
@@ -31,6 +31,7 @@ export async function getAllExams() {
       examDate: exam.examDate,
       durationMinutes: exam.durationMinutes ?? 0,
       isLive: exam.isLive ?? false,
+      isClosed: exam.isClosed ?? false,
       companyName: exam.companyName,
     }));
   } catch (error) {
@@ -38,6 +39,8 @@ export async function getAllExams() {
     return [];
   }
 }
+
+// Get LIVE exams - only open exams
 export async function getLiveExams() {
   try {
     const liveExams = await db
@@ -45,14 +48,20 @@ export async function getLiveExams() {
         id: exams.id,
         name: exams.name,
         examDate: exams.examDate,
-        description: exams.description, // Add description field
+        description: exams.description,
         durationMinutes: exams.durationMinutes,
         isLive: exams.isLive,
+        isClosed: exams.isClosed,
         companyName: companies.name,
       })
       .from(exams)
       .leftJoin(companies, eq(exams.companyId, companies.id))
-      .where(eq(exams.isLive, true))
+      .where(
+        and(
+          eq(exams.isLive, true),
+          eq(exams.isClosed, false)
+        )
+      )
       .orderBy(desc(exams.examDate))
       .limit(10);
 
@@ -63,6 +72,7 @@ export async function getLiveExams() {
   }
 }
 
+// Get UPCOMING exams - only open exams
 export async function getUpcomingExams() {
   try {
     const now = new Date();
@@ -72,9 +82,15 @@ export async function getUpcomingExams() {
         name: exams.name,
         examDate: exams.examDate,
         isLive: exams.isLive,
+        isClosed: exams.isClosed,
       })
       .from(exams)
-      .where(gt(exams.examDate, now))
+      .where(
+        and(
+          gt(exams.examDate, now),
+          eq(exams.isClosed, false)
+        )
+      )
       .orderBy(exams.examDate)
       .limit(10);
 
@@ -85,6 +101,32 @@ export async function getUpcomingExams() {
   }
 }
 
+// Get RESULT exams - show regardless of closed status
+export async function getResultExams() {
+  try {
+    const resultExams = await db
+      .select({
+        id: exams.id,
+        name: exams.name,
+        examDate: exams.examDate,
+        description: exams.description,
+        totalMarks: exams.totalMarks,
+        resultAnnounced: exams.resultAnnounced,
+        isClosed: exams.isClosed,
+      })
+      .from(exams)
+      .where(eq(exams.resultAnnounced, true))
+      .orderBy(desc(exams.examDate))
+      .limit(10);
+
+    return resultExams;
+  } catch (error) {
+    console.error("Error fetching result exams:", error);
+    return [];
+  }
+}
+
+// Rest of the functions remain the same...
 export async function getAnnouncements() {
   try {
     const announcementsList = await db
@@ -122,29 +164,6 @@ export async function getArticles() {
     return articlesList;
   } catch (error) {
     console.error("Error fetching articles:", error);
-    return [];
-  }
-}
-
-export async function getResultExams() {
-  try {
-    const resultExams = await db
-      .select({
-        id: exams.id,
-        name: exams.name,
-        examDate: exams.examDate,
-        description: exams.description, // Add description field
-        totalMarks: exams.totalMarks,
-        resultAnnounced: exams.resultAnnounced,
-      })
-      .from(exams)
-      .where(eq(exams.resultAnnounced, true))
-      .orderBy(desc(exams.examDate))
-      .limit(10);
-
-    return resultExams;
-  } catch (error) {
-    console.error("Error fetching result exams:", error);
     return [];
   }
 }

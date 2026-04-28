@@ -94,6 +94,7 @@ export const exams = pgTable("exams", {
   description: text("description"),
   syllabusPdf: text("syllabus_pdf"),
   coverImage: text("cover_image"),
+  isClosed: boolean("is_closed").default(false),
   examDate: timestamp("exam_date"),
   durationMinutes: integer("duration_minutes"),
   totalMarks: integer("total_marks"),

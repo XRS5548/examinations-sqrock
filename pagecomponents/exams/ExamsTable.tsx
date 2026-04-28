@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy } from "lucide-react";
+import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy, Lock, LockOpen } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditExamDialog } from "./EditExamDialog"; 
 import { DeleteExamDialog } from "./DeleteExamDialog"; 
-import { toggleExamLive, toggleResultAnnounced } from "@/actions/exams";
+import { toggleExamLive, toggleResultAnnounced, toggleExamClosed } from "@/actions/exams";
 import { toast } from "sonner";
 
 export type Exam = {
@@ -45,6 +45,7 @@ export type Exam = {
   durationMinutes: number | null;
   totalMarks: number | null;
   isLive: boolean;
+  isClosed: boolean;
   resultAnnounced: boolean;
   syllabusPdf: string | null;
   coverImage: string | null;
@@ -60,6 +61,8 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
   const [deletingExam, setDeletingExam] = useState<Exam | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [selectedExamForResult, setSelectedExamForResult] = useState<Exam | null>(null);
+  const [closedDialogOpen, setClosedDialogOpen] = useState(false);
+  const [selectedExamForClosed, setSelectedExamForClosed] = useState<Exam | null>(null);
 
   const handleToggleLive = async (id: number, currentStatus: boolean) => {
     try {
@@ -71,6 +74,24 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
         toast.success(`Exam is now ${!currentStatus ? 'live' : 'offline'}`);
       } else {
         toast.error(result.error || "Failed to toggle exam status");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    }
+  };
+
+  const handleToggleClosed = async (id: number, currentStatus: boolean) => {
+    try {
+      const result = await toggleExamClosed(id, !currentStatus);
+      if (result.success) {
+        setExams(exams.map(exam => 
+          exam.id === id ? { ...exam, isClosed: !currentStatus } : exam
+        ));
+        toast.success(`Exam is now ${!currentStatus ? 'closed' : 'opened'}`);
+        setClosedDialogOpen(false);
+        setSelectedExamForClosed(null);
+      } else {
+        toast.error(result.error || "Failed to update exam closed status");
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -100,6 +121,11 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
     setResultDialogOpen(true);
   };
 
+  const openClosedDialog = (exam: Exam) => {
+    setSelectedExamForClosed(exam);
+    setClosedDialogOpen(true);
+  };
+
   if (exams.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -125,6 +151,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
               <TableHead>Duration</TableHead>
               <TableHead>Total Marks</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Closed</TableHead>
               <TableHead>Results</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -150,6 +177,15 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                   <Badge variant={exam.isLive ? "default" : "secondary"}>
                     {exam.isLive ? "Live" : "Not Live"}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {exam.isClosed ? (
+                    <Badge variant="destructive">Closed</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-green-600 border-green-600">
+                      Open
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   {exam.resultAnnounced ? (
@@ -183,6 +219,20 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                           <>
                             <Play className="mr-2 h-4 w-4" />
                             Make Live
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => openClosedDialog(exam)}>
+                        {exam.isClosed ? (
+                          <>
+                            <LockOpen className="mr-2 h-4 w-4" />
+                            Open Exam
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="mr-2 h-4 w-4" />
+                            Close Exam
                           </>
                         )}
                       </DropdownMenuItem>
@@ -226,6 +276,51 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
           setDeletingExam(null);
         }}
       />
+
+      {/* Closed/Open Exam Confirmation Dialog */}
+      <AlertDialog open={closedDialogOpen} onOpenChange={setClosedDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedExamForClosed?.isClosed ? "Open Exam" : "Close Exam"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExamForClosed?.isClosed ? (
+                <>
+                  Are you sure you want to open <strong>{selectedExamForClosed?.name}</strong>?
+                  <br /><br />
+                  Students will be able to access and take this exam again.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to close <strong>{selectedExamForClosed?.name}</strong>?
+                  <br /><br />
+                  <strong>Warning:</strong> Once closed, students will no longer be able to:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Start new attempts</li>
+                    <li>Submit their answers</li>
+                    <li>Access the exam</li>
+                  </ul>
+                  <br />
+                  Make sure all students have completed their attempts before closing.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedExamForClosed && handleToggleClosed(
+                selectedExamForClosed.id, 
+                selectedExamForClosed.isClosed
+              )}
+              className={selectedExamForClosed?.isClosed ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
+            >
+              {selectedExamForClosed?.isClosed ? "Open Exam" : "Close Exam"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Result Announcement Confirmation Dialog */}
       <AlertDialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>

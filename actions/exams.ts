@@ -438,3 +438,57 @@ export async function toggleResultAnnounced(id: number, resultAnnounced: boolean
     return { success: false, error: "Failed to toggle result status" };
   }
 }
+
+
+
+// actions/exams.ts - Add this function
+export async function toggleExamClosed(id: number, isClosed: boolean) {
+  try {
+    // Get current authenticated user
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Get user's company
+    const company = await getUserCompany();
+    if (!company) {
+      return { success: false, error: "No company found" };
+    }
+
+    // Check if exam exists and belongs to user's company
+    const existingExams = await db.select()
+      .from(exams)
+      .where(eq(exams.id, id))
+      .limit(1);
+
+    if (existingExams.length === 0) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    const exam = existingExams[0];
+    if (exam.companyId !== company.id) {
+      return { success: false, error: "Unauthorized: Exam does not belong to your company" };
+    }
+
+    // Toggle exam closed status
+    const updatedExam = await db.update(exams)
+      .set({ 
+        isClosed: isClosed,
+      })
+      .where(eq(exams.id, id))
+      .returning();
+
+    if (!updatedExam || updatedExam.length === 0) {
+      return { success: false, error: "Failed to update exam closed status" };
+    }
+
+    revalidatePath("/dashboard/exams");
+    revalidatePath(`/dashboard/exams/${id}`);
+    
+    return { success: true, exam: updatedExam[0] };
+  } catch (error) {
+    console.error("Toggle exam closed error:", error);
+    return { success: false, error: "Failed to toggle exam closed status" };
+  }
+}

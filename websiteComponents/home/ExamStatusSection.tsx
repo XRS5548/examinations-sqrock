@@ -2,12 +2,17 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Calendar, Trophy } from "lucide-react";
+import { Clock, Calendar, Trophy, Lock, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type Exam = {
   id: number;
   name: string | null;
   examDate: Date | null;
+  isLive?: boolean | null;
+  isClosed?: boolean | null;
+  resultAnnounced?: boolean | null;
 };
 
 interface ExamStatusSectionProps {
@@ -32,7 +37,14 @@ export function ExamStatusSection({ liveExams, upcomingExams, resultExams }: Exa
             {liveExams.length > 0 ? (
               liveExams.slice(0, 3).map((exam) => (
                 <div key={exam.id} className="px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
+                    {exam.isClosed && (
+                      <Badge variant="destructive" className="text-xs">
+                        Closed
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     Started • {exam.examDate ? format(new Date(exam.examDate), "hh:mm a") : "Now"}
@@ -40,7 +52,10 @@ export function ExamStatusSection({ liveExams, upcomingExams, resultExams }: Exa
                 </div>
               ))
             ) : (
-              <div className="px-5 py-8 text-center text-sm text-gray-500">No live exams</div>
+              <div className="px-5 py-8 text-center text-sm text-gray-500">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                No live exams available
+              </div>
             )}
           </div>
         </div>
@@ -57,12 +72,24 @@ export function ExamStatusSection({ liveExams, upcomingExams, resultExams }: Exa
             {upcomingExams.length > 0 ? (
               upcomingExams.slice(0, 3).map((exam) => (
                 <div key={exam.id} className="px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{exam.examDate ? format(new Date(exam.examDate), "MMM dd, yyyy") : "Date TBA"}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
+                    {exam.isClosed && (
+                      <Badge variant="destructive" className="text-xs">
+                        Closed
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {exam.examDate ? format(new Date(exam.examDate), "MMM dd, yyyy") : "Date TBA"}
+                  </p>
                 </div>
               ))
             ) : (
-              <div className="px-5 py-8 text-center text-sm text-gray-500">No upcoming exams</div>
+              <div className="px-5 py-8 text-center text-sm text-gray-500">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                No upcoming exams scheduled
+              </div>
             )}
           </div>
         </div>
@@ -79,12 +106,32 @@ export function ExamStatusSection({ liveExams, upcomingExams, resultExams }: Exa
             {resultExams.length > 0 ? (
               resultExams.slice(0, 3).map((exam) => (
                 <div key={exam.id} className="px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">Results available now</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{exam.name}</p>
+                    {exam.isClosed && (
+                      <Badge variant="secondary" className="text-xs">
+                        Archived
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <Trophy className="h-3 w-3 text-green-600" />
+                    Results available now
+                  </p>
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="text-xs p-0 h-auto mt-1 text-purple-600 dark:text-purple-400"
+                  >
+                    View Results →
+                  </Button>
                 </div>
               ))
             ) : (
-              <div className="px-5 py-8 text-center text-sm text-gray-500">No results declared</div>
+              <div className="px-5 py-8 text-center text-sm text-gray-500">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                No results declared yet
+              </div>
             )}
           </div>
         </div>
