@@ -100,6 +100,7 @@ export const exams = pgTable("exams", {
   totalMarks: integer("total_marks"),
   createdAt: timestamp("created_at").defaultNow(),
   isLive: boolean("is_live").default(false),
+  isPublic: boolean("is_public").default(false), 
   resultAnnounced: boolean("result_announced").default(false),
 });
 

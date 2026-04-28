@@ -2,8 +2,8 @@
 "use server";
 
 import { db } from "@/db";
-import { exams, companies } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { exams, companies, questions } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
@@ -56,7 +56,7 @@ export async function createExam(formData: FormData) {
     }
 
     const companyId = company.id;
-    
+
     const rawData = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
@@ -90,7 +90,7 @@ export async function createExam(formData: FormData) {
 
     revalidatePath("/dashboard/exams");
     revalidatePath("/dashboard");
-    
+
     return { success: true, exam: newExam[0] };
   } catch (error) {
     console.error("Create exam error:", error);
@@ -162,7 +162,7 @@ export async function updateExam(id: number, formData: FormData) {
 
     revalidatePath("/dashboard/exams");
     revalidatePath(`/dashboard/exams/${id}`);
-    
+
     return { success: true, exam: updatedExam[0] };
   } catch (error) {
     console.error("Update exam error:", error);
@@ -190,14 +190,14 @@ export async function getExamName(examId: number) {
       id: exams.id,
       name: exams.name,
     })
-    .from(exams)
-    .where(
-      and(
-        eq(exams.id, examId),
-        eq(exams.companyId, company.id)
+      .from(exams)
+      .where(
+        and(
+          eq(exams.id, examId),
+          eq(exams.companyId, company.id)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
     return examList[0]?.name || null;
   } catch (error) {
@@ -224,9 +224,9 @@ export async function getCompanyExams() {
       id: exams.id,
       name: exams.name,
     })
-    .from(exams)
-    .where(eq(exams.companyId, company.id))
-    .orderBy(exams.createdAt);
+      .from(exams)
+      .where(eq(exams.companyId, company.id))
+      .orderBy(exams.createdAt);
 
     return examsList;
   } catch (error) {
@@ -266,9 +266,9 @@ export async function deleteExam(id: number) {
 
     // Delete exam using Drizzle
     await db.delete(exams).where(eq(exams.id, id));
-    
+
     revalidatePath("/dashboard/exams");
-    
+
     return { success: true };
   } catch (error) {
     console.error("Delete exam error:", error);
@@ -296,6 +296,14 @@ export async function toggleExamLive(id: number, isLive: boolean) {
       .where(eq(exams.id, id))
       .limit(1);
 
+
+    if (existingExams.length > 0 && !existingExams[0].isPublic) {
+      return {
+        success: false,
+        error: "Cannot make exam live because it's in draft mode. Please make it public first."
+      };
+    }
+
     if (existingExams.length === 0) {
       return { success: false, error: "Exam not found" };
     }
@@ -307,7 +315,7 @@ export async function toggleExamLive(id: number, isLive: boolean) {
 
     // Toggle exam live status using Drizzle
     const updatedExam = await db.update(exams)
-      .set({ 
+      .set({
         isLive: isLive,
       })
       .where(eq(exams.id, id))
@@ -319,7 +327,7 @@ export async function toggleExamLive(id: number, isLive: boolean) {
 
     revalidatePath("/dashboard/exams");
     revalidatePath(`/dashboard/exams/${id}`);
-    
+
     return { success: true, exam: updatedExam[0] };
   } catch (error) {
     console.error("Toggle exam live error:", error);
@@ -341,12 +349,12 @@ export async function getExamById(id: number) {
       .limit(1);
 
     if (examsList.length === 0) return null;
-    
+
     const exam = examsList[0];
-    
+
     // Check if exam belongs to user's company
     if (exam.companyId !== company.id) return null;
-    
+
     return exam;
   } catch (error) {
     console.error("Get exam error:", error);
@@ -361,7 +369,7 @@ export async function getAllExams() {
 
     const company = await getUserCompany();
     if (!company) return [];
-    
+
     const allExams = await db.select()
       .from(exams)
       .where(eq(exams.companyId, company.id))
@@ -419,7 +427,7 @@ export async function toggleResultAnnounced(id: number, resultAnnounced: boolean
 
     // Toggle result announced status
     const updatedExams = await db.update(exams)
-      .set({ 
+      .set({
         resultAnnounced: resultAnnounced,
       })
       .where(eq(exams.id, id))
@@ -431,7 +439,7 @@ export async function toggleResultAnnounced(id: number, resultAnnounced: boolean
 
     revalidatePath("/dashboard/exams");
     revalidatePath(`/dashboard/exams/results/${id}`);
-    
+
     return { success: true, exam: updatedExams[0] };
   } catch (error) {
     console.error("Toggle result announced error:", error);
@@ -473,7 +481,7 @@ export async function toggleExamClosed(id: number, isClosed: boolean) {
 
     // Toggle exam closed status
     const updatedExam = await db.update(exams)
-      .set({ 
+      .set({
         isClosed: isClosed,
       })
       .where(eq(exams.id, id))
@@ -485,10 +493,72 @@ export async function toggleExamClosed(id: number, isClosed: boolean) {
 
     revalidatePath("/dashboard/exams");
     revalidatePath(`/dashboard/exams/${id}`);
-    
+
     return { success: true, exam: updatedExam[0] };
   } catch (error) {
     console.error("Toggle exam closed error:", error);
     return { success: false, error: "Failed to toggle exam closed status" };
+  }
+}
+
+
+
+
+export async function toggleExamPublic(examId: number, isPublic: boolean) {
+  try {
+    // Verify exam exists
+    const existingExam = await db
+      .select()
+      .from(exams)
+      .where(eq(exams.id, examId))
+      .limit(1);
+
+    if (existingExam.length === 0) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    // If making public, validate required fields
+    if (isPublic) {
+      const exam = existingExam[0];
+      const missingFields = [];
+
+      if (!exam.name) missingFields.push("Exam Name");
+      if (!exam.durationMinutes) missingFields.push("Duration");
+      if (!exam.totalMarks) missingFields.push("Total Marks");
+
+      // Check if exam has at least one question
+      const questionCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(questions)
+        .where(eq(questions.examId, examId));
+
+      const hasQuestions = Number(questionCount[0]?.count) > 0;
+      if (!hasQuestions) missingFields.push("At least one question");
+
+      if (missingFields.length > 0) {
+        return {
+          success: false,
+          error: `Cannot make exam public. Missing: ${missingFields.join(", ")}`
+        };
+      }
+    }
+
+    // Update the exam
+    await db
+      .update(exams)
+      .set({
+        isPublic: isPublic,
+      })
+      .where(eq(exams.id, examId));
+
+    // Log the action (optional)
+    console.log(`Exam ${examId} visibility changed to: ${isPublic ? 'public' : 'draft'}`);
+
+    revalidatePath("/dashboard/exams");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error toggling exam public status:", error);
+    return { success: false, error: "Failed to update exam visibility" };
   }
 }

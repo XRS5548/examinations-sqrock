@@ -3,9 +3,9 @@
 
 import { db } from "@/db";
 import { exams, announcements, articles, companies } from "@/db/schema";
-import { eq, desc, gt, and } from "drizzle-orm";
+import { eq, desc, gt, and, isNotNull, sql } from "drizzle-orm";
 
-// Get ALL exams for hero section (including closed ones but with filter)
+// Get ALL public exams for hero section
 export async function getAllExams() {
   try {
     const allExams = await db
@@ -21,6 +21,11 @@ export async function getAllExams() {
       })
       .from(exams)
       .leftJoin(companies, eq(exams.companyId, companies.id))
+      .where(
+        and(
+          eq(exams.isPublic, true)  // ✅ Only public exams
+        )
+      )
       .orderBy(desc(exams.isLive), desc(exams.examDate))
       .limit(50);
 
@@ -40,7 +45,7 @@ export async function getAllExams() {
   }
 }
 
-// Get LIVE exams - only open exams
+// Get LIVE public exams - only open exams
 export async function getLiveExams() {
   try {
     const liveExams = await db
@@ -58,6 +63,7 @@ export async function getLiveExams() {
       .leftJoin(companies, eq(exams.companyId, companies.id))
       .where(
         and(
+          eq(exams.isPublic, true),    // ✅ Only public exams
           eq(exams.isLive, true),
           eq(exams.isClosed, false)
         )
@@ -72,7 +78,7 @@ export async function getLiveExams() {
   }
 }
 
-// Get UPCOMING exams - only open exams
+// Get UPCOMING public exams
 export async function getUpcomingExams() {
   try {
     const now = new Date();
@@ -87,6 +93,7 @@ export async function getUpcomingExams() {
       .from(exams)
       .where(
         and(
+          eq(exams.isPublic, true),    // ✅ Only public exams
           gt(exams.examDate, now),
           eq(exams.isClosed, false)
         )
@@ -101,7 +108,7 @@ export async function getUpcomingExams() {
   }
 }
 
-// Get RESULT exams - show regardless of closed status
+// Get RESULT exams (only public ones)
 export async function getResultExams() {
   try {
     const resultExams = await db
@@ -115,13 +122,126 @@ export async function getResultExams() {
         isClosed: exams.isClosed,
       })
       .from(exams)
-      .where(eq(exams.resultAnnounced, true))
+      .where(
+        and(
+          eq(exams.isPublic, true),        // ✅ Only public exams
+          eq(exams.resultAnnounced, true)
+        )
+      )
       .orderBy(desc(exams.examDate))
       .limit(10);
 
     return resultExams;
   } catch (error) {
     console.error("Error fetching result exams:", error);
+    return [];
+  }
+}
+
+// Get featured public exams (with additional filters)
+export async function getFeaturedExams() {
+  try {
+    const featuredExams = await db
+      .select({
+        id: exams.id,
+        name: exams.name,
+        description: exams.description,
+        examDate: exams.examDate,
+        coverImage: exams.coverImage,
+        companyName: companies.name,
+        companyLogo: companies.logoUrl,
+      })
+      .from(exams)
+      .leftJoin(companies, eq(exams.companyId, companies.id))
+      .where(
+        and(
+          eq(exams.isPublic, true),        // ✅ Only public exams
+          eq(exams.isLive, true),
+          eq(exams.isClosed, false),
+          isNotNull(exams.coverImage)      // Only exams with cover images
+        )
+      )
+      .orderBy(desc(exams.examDate))
+      .limit(6);
+
+    return featuredExams;
+  } catch (error) {
+    console.error("Error fetching featured exams:", error);
+    return [];
+  }
+}
+
+// Get exam by ID with public check
+export async function getExamById(examId: number) {
+  try {
+    const exam = await db
+      .select({
+        id: exams.id,
+        name: exams.name,
+        description: exams.description,
+        examDate: exams.examDate,
+        durationMinutes: exams.durationMinutes,
+        totalMarks: exams.totalMarks,
+        isLive: exams.isLive,
+        isClosed: exams.isClosed,
+        isPublic: exams.isPublic,
+        syllabusPdf: exams.syllabusPdf,
+        coverImage: exams.coverImage,
+        companyId: exams.companyId,
+      })
+      .from(exams)
+      .where(
+        and(
+          eq(exams.id, examId),
+          eq(exams.isPublic, true)  // ✅ Only return if public
+        )
+      )
+      .limit(1);
+
+    if (exam.length === 0) {
+      return null;
+    }
+
+    return exam[0];
+  } catch (error) {
+    console.error("Error fetching exam by ID:", error);
+    return null;
+  }
+}
+
+// Search public exams
+export async function searchExams(searchTerm: string) {
+  try {
+    const searchResults = await db
+      .select({
+        id: exams.id,
+        name: exams.name,
+        description: exams.description,
+        examDate: exams.examDate,
+        companyName: companies.name,
+      })
+      .from(exams)
+      .leftJoin(companies, eq(exams.companyId, companies.id))
+      .where(
+        and(
+          eq(exams.isPublic, true),  // ✅ Only public exams
+          // Simple search - you can make this more sophisticated
+          // This is a simplified version
+        )
+      )
+      .orderBy(desc(exams.examDate))
+      .limit(20);
+
+    // Filter by search term in memory (or use SQL LIKE for better performance)
+    const filtered = searchResults.filter(exam => 
+      exam.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      exam.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      exam.companyName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return filtered;
+  } catch (error) {
+    console.error("Error searching exams:", error);
     return [];
   }
 }
@@ -185,5 +305,25 @@ export async function getCompanies() {
   } catch (error) {
     console.error("Error fetching companies:", error);
     return [];
+  }
+}
+
+// Get public exams count for a company
+export async function getPublicExamsCount(companyId: number) {
+  try {
+    const count = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(exams)
+      .where(
+        and(
+          eq(exams.companyId, companyId),
+          eq(exams.isPublic, true)
+        )
+      );
+
+    return Number(count[0]?.count) || 0;
+  } catch (error) {
+    console.error("Error fetching public exams count:", error);
+    return 0;
   }
 }

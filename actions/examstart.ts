@@ -2,8 +2,8 @@
 "use server";
 
 import { db } from "@/db";
-import { examRegistrations, students, studentAnswers, questions, exams, cheatingLogs } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { examRegistrations, students, studentAnswers, questions, exams, cheatingLogs, examAttemptLogs } from "@/db/schema";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -259,5 +259,142 @@ export async function logCheatingEvent(registrationId: number, eventType: string
   } catch (error) {
     console.error("Log cheating event error:", error);
     return { success: false };
+  }
+}
+
+
+
+
+import { NextRequest, NextResponse } from "next/server";
+
+
+// Schema for batch validation
+const batchCheatingLogSchema = z.object({
+  registrationId: z.number(),
+  violations: z.array(z.object({
+    type: z.string(),
+    timestamp: z.number(),
+  })),
+});
+
+export async function batchCheatingLogs(formData: FormData) {
+  try {
+    const data = JSON.parse(formData.get("data") as string);
+    const validated = batchCheatingLogSchema.parse(data);
+    
+    const { registrationId, violations } = validated;
+
+    if (!violations || violations.length === 0) {
+      return { success: true, message: "No violations to log" };
+    }
+
+    // Check if registration exists and exam is still active
+    const registration = await db
+      .select({
+        id: examRegistrations.id,
+        status: examRegistrations.status,
+      })
+      .from(examRegistrations)
+      .where(eq(examRegistrations.id, registrationId))
+      .limit(1);
+
+    if (registration.length === 0) {
+      return { success: false, error: "Registration not found" };
+    }
+
+    // Don't log if exam is already completed
+    if (registration[0].status === "completed") {
+      return { success: false, error: "Exam already completed" };
+    }
+
+    // Rate limiting - prevent abuse
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const recentLogs = await db
+      .select({ count: count() })
+      .from(cheatingLogs)
+      .where(
+        and(
+          eq(cheatingLogs.registrationId, registrationId),
+          sql`${cheatingLogs.createdAt} >= ${oneMinuteAgo}`
+        )
+      );
+
+    const recentCount = Number(recentLogs[0]?.count) || 0;
+    
+    // Max 20 violations per minute
+    if (recentCount + violations.length > 20) {
+      return { 
+        success: false, 
+        error: "Rate limit exceeded",
+        limit: 20,
+        current: recentCount 
+      };
+    }
+
+    // Batch insert all violations
+    const insertedLogs = await db.insert(cheatingLogs).values(
+      violations.map(v => ({
+        registrationId: registrationId,
+        eventType: v.type,
+        createdAt: new Date(v.timestamp),
+      }))
+    ).returning({ id: cheatingLogs.id });
+
+    // Get total violation count after batch insert
+    const totalViolationsResult = await db
+      .select({ count: count() })
+      .from(cheatingLogs)
+      .where(eq(cheatingLogs.registrationId, registrationId));
+
+    const totalViolations = Number(totalViolationsResult[0]?.count) || 0;
+
+    // Flag exam if too many violations
+    let flagged = false;
+    if (totalViolations >= 10) {
+      await db
+        .update(examRegistrations)
+        .set({ 
+          cheating: true,
+        })
+        .where(eq(examRegistrations.id, registrationId));
+      flagged = true;
+    }
+
+    // Log batch event for audit
+    await db.insert(examAttemptLogs).values({
+      registrationId: registrationId,
+      action: "batch_cheating_events",
+      data: {
+        count: violations.length,
+        types: [...new Set(violations.map(v => v.type))],
+        totalViolations: totalViolations,
+        flagged: flagged,
+      },
+      createdAt: new Date(),
+    });
+
+    return { 
+      success: true, 
+      logged: violations.length,
+      totalViolations: totalViolations,
+      flagged: flagged,
+      message: flagged ? "Exam flagged for review" : "Violations logged successfully"
+    };
+    
+  } catch (error) {
+    console.error("Batch cheating logs error:", error);
+    
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: "Invalid data format",
+        details: error 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: "Failed to log cheating events" 
+    };
   }
 }

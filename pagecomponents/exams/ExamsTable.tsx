@@ -1,9 +1,9 @@
 // components/dashboard/exams/ExamsTable.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy, Lock, LockOpen } from "lucide-react";
+import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy, Lock, LockOpen, Globe, Globe2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -34,8 +34,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditExamDialog } from "./EditExamDialog"; 
 import { DeleteExamDialog } from "./DeleteExamDialog"; 
-import { toggleExamLive, toggleResultAnnounced, toggleExamClosed } from "@/actions/exams";
+import { toggleExamLive, toggleResultAnnounced, toggleExamClosed, toggleExamPublic } from "@/actions/exams";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export type Exam = {
   id: number;
@@ -46,6 +47,7 @@ export type Exam = {
   totalMarks: number | null;
   isLive: boolean;
   isClosed: boolean;
+  isPublic: boolean;
   resultAnnounced: boolean;
   syllabusPdf: string | null;
   coverImage: string | null;
@@ -56,6 +58,7 @@ interface ExamsTableProps {
 }
 
 export function ExamsTable({ initialExams }: ExamsTableProps) {
+  const [mounted, setMounted] = useState(false);
   const [exams, setExams] = useState(initialExams);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [deletingExam, setDeletingExam] = useState<Exam | null>(null);
@@ -63,6 +66,12 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
   const [selectedExamForResult, setSelectedExamForResult] = useState<Exam | null>(null);
   const [closedDialogOpen, setClosedDialogOpen] = useState(false);
   const [selectedExamForClosed, setSelectedExamForClosed] = useState<Exam | null>(null);
+  const [publicDialogOpen, setPublicDialogOpen] = useState(false);
+  const [selectedExamForPublic, setSelectedExamForPublic] = useState<Exam | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleToggleLive = async (id: number, currentStatus: boolean) => {
     try {
@@ -98,6 +107,24 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
     }
   };
 
+  const handleTogglePublic = async (id: number, currentStatus: boolean) => {
+    try {
+      const result = await toggleExamPublic(id, !currentStatus);
+      if (result.success) {
+        setExams(exams.map(exam => 
+          exam.id === id ? { ...exam, isPublic: !currentStatus } : exam
+        ));
+        toast.success(`Exam is now ${!currentStatus ? 'public' : 'draft'}`);
+        setPublicDialogOpen(false);
+        setSelectedExamForPublic(null);
+      } else {
+        toast.error(result.error || "Failed to update exam visibility");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    }
+  };
+
   const handleToggleResult = async (id: number, currentStatus: boolean) => {
     try {
       const result = await toggleResultAnnounced(id, !currentStatus);
@@ -126,6 +153,20 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
     setClosedDialogOpen(true);
   };
 
+  const openPublicDialog = (exam: Exam) => {
+    setSelectedExamForPublic(exam);
+    setPublicDialogOpen(true);
+  };
+
+  // Don't render anything on server to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="rounded-md border">
+        <div className="p-8 text-center">Loading...</div>
+      </div>
+    );
+  }
+
   if (exams.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -152,33 +193,48 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
               <TableHead>Total Marks</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Closed</TableHead>
+              <TableHead>Visibility</TableHead>
               <TableHead>Results</TableHead>
+              <TableHead>Assign Students</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {exams.map((exam) => (
-              <TableRow key={exam.id}>
-                <TableCell className="font-medium">{exam.name || "Untitled"}</TableCell>
-                <TableCell>
+              <TableRow 
+                key={exam.id} 
+                className={!exam.isPublic ? "bg-yellow-50/50 hover:bg-yellow-50" : ""}
+                suppressHydrationWarning
+              >
+                <TableCell className="font-medium" suppressHydrationWarning>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!exam.isPublic && (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs">
+                        Draft
+                      </Badge>
+                    )}
+                    <span>{exam.name || "Untitled"}</span>
+                  </div>
+                </TableCell>
+                <TableCell suppressHydrationWarning>
                   {exam.examDate 
                     ? format(new Date(exam.examDate), "MMM dd, yyyy")
                     : "Not set"}
                 </TableCell>
-                <TableCell>
+                <TableCell suppressHydrationWarning>
                   {exam.durationMinutes 
                     ? `${exam.durationMinutes} min`
                     : "Not set"}
                 </TableCell>
-                <TableCell>
+                <TableCell suppressHydrationWarning>
                   {exam.totalMarks || "Not set"}
                 </TableCell>
-                <TableCell>
+                <TableCell suppressHydrationWarning>
                   <Badge variant={exam.isLive ? "default" : "secondary"}>
                     {exam.isLive ? "Live" : "Not Live"}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell suppressHydrationWarning>
                   {exam.isClosed ? (
                     <Badge variant="destructive">Closed</Badge>
                   ) : (
@@ -187,7 +243,20 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell suppressHydrationWarning>
+                  {exam.isPublic ? (
+                    <Badge variant="outline" className="text-green-600 border-green-600">
+                      <Globe className="w-3 h-3 mr-1" />
+                      Public
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                      <Eye className="w-3 h-3 mr-1" />
+                      Draft
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell suppressHydrationWarning>
                   {exam.resultAnnounced ? (
                     <Badge className="bg-green-600">Results Declared</Badge>
                   ) : (
@@ -196,7 +265,15 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell suppressHydrationWarning>
+                  <Link href={'/dashboard/exams/students/'+exam.id}>
+                    <Button variant={"outline"} size={"sm"}>
+                      <Users className="w-4 h-4 mr-1" />
+                      Assign
+                    </Button>
+                  </Link>
+                </TableCell>
+                <TableCell className="text-right" suppressHydrationWarning>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
@@ -207,8 +284,23 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => setEditingExam(exam)}>
+                        <FileText className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openPublicDialog(exam)}>
+                        {exam.isPublic ? (
+                          <>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Move to Draft
+                          </>
+                        ) : (
+                          <>
+                            <Globe2 className="mr-2 h-4 w-4" />
+                            Make Public
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleToggleLive(exam.id, exam.isLive)}>
                         {exam.isLive ? (
                           <>
@@ -276,6 +368,54 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
           setDeletingExam(null);
         }}
       />
+
+      {/* Public/Draft Exam Confirmation Dialog */}
+      <AlertDialog open={publicDialogOpen} onOpenChange={setPublicDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedExamForPublic?.isPublic ? "Move to Draft" : "Make Exam Public"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExamForPublic?.isPublic ? (
+                <>
+                  Are you sure you want to move <strong>{selectedExamForPublic?.name}</strong> to draft?
+                  <br /><br />
+                  <strong>Warning:</strong> Once moved to draft:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>The exam will be hidden from students</li>
+                    <li>Students cannot access or take the exam</li>
+                    <li>Existing attempts will be preserved but hidden</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  Are you sure you want to make <strong>{selectedExamForPublic?.name}</strong> public?
+                  <br /><br />
+                  Once public:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>The exam will be visible to all eligible students</li>
+                    <li>Students can view exam details</li>
+                    <li><strong>Note:</strong> The exam needs to be &quot;Live&quot; to be taken by students</li>
+                  </ul>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedExamForPublic && handleTogglePublic(
+                selectedExamForPublic.id, 
+                selectedExamForPublic.isPublic
+              )}
+              className={selectedExamForPublic?.isPublic ? "bg-yellow-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"}
+            >
+              {selectedExamForPublic?.isPublic ? "Move to Draft" : "Make Public"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Closed/Open Exam Confirmation Dialog */}
       <AlertDialog open={closedDialogOpen} onOpenChange={setClosedDialogOpen}>

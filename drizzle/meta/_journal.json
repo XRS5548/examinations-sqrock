@@ -15,6 +15,13 @@
       "when": 1777376030834,
       "tag": "0001_careful_plazm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777383336159,
+      "tag": "0002_melodic_pride",
+      "breakpoints": true
     }
   ]
 }

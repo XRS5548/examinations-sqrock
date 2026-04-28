@@ -1,11 +1,11 @@
-// components/exam/ExamInterface.tsx (updated with anti-cheat system)
+// components/exam/ExamInterface.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Timer } from "./Timer";
 import { QuestionCard } from "./QuestionCard";
-import { submitExam, logCheatingEvent } from "@/actions/examstart";
+import { submitExam, logCheatingEvent, batchCheatingLogs } from "@/actions/examstart"; 
 
 interface Option {
   id: number;
@@ -42,210 +42,146 @@ export function ExamInterface({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [examSubmitted, setExamSubmitted] = useState(false);
-  const fullscreenExitRef = useRef(false);
-
-  // Anti-cheat: Prevent copy, cut, paste
-  useEffect(() => {
-    const handleCopy = (e: ClipboardEvent) => {
-      e.preventDefault();
-      logCheatingEvent(registrationId, "copy_attempt");
-      setWarningCount(prev => prev + 1);
-      console.warn("Cheating detected");
-    };
-
-    const handleCut = (e: ClipboardEvent) => {
-      e.preventDefault();
-      logCheatingEvent(registrationId, "cut_attempt");
-      setWarningCount(prev => prev + 1);
-      console.warn("Cheating detected");
-    };
-
-    const handlePaste = (e: ClipboardEvent) => {
-      e.preventDefault();
-      logCheatingEvent(registrationId, "paste_attempt");
-      setWarningCount(prev => prev + 1);
-      console.warn("Cheating detected");
-    };
-
-    document.addEventListener("copy", handleCopy);
-    document.addEventListener("cut", handleCut);
-    document.addEventListener("paste", handlePaste);
-
-    return () => {
-      document.removeEventListener("copy", handleCopy);
-      document.removeEventListener("cut", handleCut);
-      document.removeEventListener("paste", handlePaste);
-    };
-  }, [registrationId]);
-
-  // Anti-cheat: Prevent right click
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      logCheatingEvent(registrationId, "right_click_attempt");
-      setWarningCount(prev => prev + 1);
-      return false;
-    };
-
-    document.addEventListener("contextmenu", handleContextMenu);
-    return () => document.removeEventListener("contextmenu", handleContextMenu);
-  }, [registrationId]);
-
-  // Anti-cheat: Prevent keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+P, F12, etc.)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent F12
-      if (e.key === "F12") {
-        e.preventDefault();
-        logCheatingEvent(registrationId, "devtools_attempt");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-        return false;
-      }
-
-      // Prevent Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-      if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) {
-        e.preventDefault();
-        logCheatingEvent(registrationId, "devtools_attempt");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-        return false;
-      }
-
-      // Prevent Ctrl+U (view source)
-      if (e.ctrlKey && e.key === "u") {
-        e.preventDefault();
-        logCheatingEvent(registrationId, "view_source_attempt");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-        return false;
-      }
-
-      // Prevent Ctrl+P (print)
-      if (e.ctrlKey && e.key === "p") {
-        e.preventDefault();
-        logCheatingEvent(registrationId, "print_attempt");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-        return false;
-      }
-
-      // Prevent Ctrl+S (save)
-      if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-        logCheatingEvent(registrationId, "save_attempt");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-        return false;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [registrationId]);
-
-  // Fullscreen mode
-  useEffect(() => {
-  const requestFullscreen = async () => {
-    try {
-      const elem = document.documentElement;
-      if (elem.requestFullscreen) {
-        await elem.requestFullscreen();
-        setIsFullscreen(true);
-      }
-    } catch (error) {
-      console.error("Fullscreen error:", error);
-    }
-  };
-
-  requestFullscreen();
-
-  const handleFullscreenChange = () => {
-    const isFull = !!document.fullscreenElement;
-    setIsFullscreen(isFull);
-
-    if (
-      !isFull &&
-      isVisible &&
-      !examSubmitted &&
-      !fullscreenExitRef.current
-    ) {
-      fullscreenExitRef.current = true;
-
-      logCheatingEvent(registrationId, "exit_fullscreen");
-      setWarningCount((prev) => prev + 1);
-
-      // re-enter fullscreen
-      document.documentElement.requestFullscreen?.();
-
-      // reset after delay (prevent loop)
-      setTimeout(() => {
-        fullscreenExitRef.current = false;
-      }, 3000);
-    }
-  };
-
-  document.addEventListener("fullscreenchange", handleFullscreenChange);
-  return () =>
-    document.removeEventListener("fullscreenchange", handleFullscreenChange);
-}, [registrationId, isVisible, examSubmitted]);
-  // Anti-cheat: Tab visibility change (switching tabs)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsVisible(false);
-        logCheatingEvent(registrationId, "tab_switch");
-        setWarningCount(prev => prev + 1);
-        console.warn("Cheating detected");
-      } else {
-        setIsVisible(true);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [registrationId]);
-
-  // Anti-cheat: Window blur (clicking outside)
-  useEffect(() => {
-    const handleBlur = () => {
-      logCheatingEvent(registrationId, "window_blur");
-      setWarningCount(prev => prev + 1);
-      console.warn("Cheating detected");
-    };
-
-    window.addEventListener("blur", handleBlur);
-    return () => window.removeEventListener("blur", handleBlur);
-  }, [registrationId]);
-
-  // Auto-submit if too many warnings (5 warnings)
-  useEffect(() => {
-    if (warningCount >= 5) {
-      console.warn("Cheating detected");
-      handleSubmit();
-    }
-  }, [warningCount]);
-
-  // Save answers to localStorage
+  const [warningCount, setWarningCount] = useState(0);
+  
+  // Refs for tracking
+  const submitLockRef = useRef(false);
+  const violationCountRef = useRef(0);
+  const lastViolationTimeRef = useRef<Record<string, number>>({});
+  
+  // Load saved answers
   useEffect(() => {
     const saved = localStorage.getItem(`exam_${registrationId}_answers`);
     if (saved) {
       try {
-        setAnswers(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load saved answers");
-      }
+        const parsed = JSON.parse(saved);
+        setAnswers(parsed);
+      } catch (e) {}
     }
   }, [registrationId]);
 
-  const saveAnswers = (newAnswers: Record<number, string>) => {
+  // Save answers
+  const saveAnswers = useCallback((newAnswers: Record<number, string>) => {
     localStorage.setItem(`exam_${registrationId}_answers`, JSON.stringify(newAnswers));
-  };
+  }, [registrationId]);
+
+  // Simple violation tracker with debounce
+  const recordViolation = useCallback(async (type: string) => {
+    if (examSubmitted || submitting) return;
+    
+    // Debounce same violation type (5 seconds)
+    const now = Date.now();
+    const lastTime = lastViolationTimeRef.current[type] || 0;
+    if (now - lastTime < 5000) return;
+    
+    lastViolationTimeRef.current[type] = now;
+    
+    // Update count
+    const newCount = violationCountRef.current + 1;
+    violationCountRef.current = newCount;
+    setWarningCount(newCount);
+    
+    // Send to server
+    await logCheatingEvent(registrationId, type);
+    
+    // Auto-flag after 10 violations (not auto-submit)
+    if (newCount >= 10) {
+      alert("Your exam has been flagged for review due to multiple violations.");
+    }
+  }, [registrationId, examSubmitted, submitting]);
+
+  // Simple anti-cheat measures
+  useEffect(() => {
+    // 1. Block right-click
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      recordViolation("right_click");
+      return false;
+    };
+    
+    // 2. Block copy/paste/cut
+    const handleCopyPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      recordViolation("copy_paste");
+      return false;
+    };
+    
+    // 3. Track tab switches (most important)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        recordViolation("tab_switch");
+      }
+    };
+    
+    // 4. Block F12 and Ctrl+Shift+I
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F12") {
+        e.preventDefault();
+        recordViolation("devtools");
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "C" || e.key === "J")) {
+        e.preventDefault();
+        recordViolation("devtools");
+      }
+      if (e.ctrlKey && (e.key === "u" || e.key === "s")) {
+        e.preventDefault();
+        recordViolation("save_attempt");
+      }
+    };
+    
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("copy", handleCopyPaste);
+    document.addEventListener("cut", handleCopyPaste);
+    document.addEventListener("paste", handleCopyPaste);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("keydown", handleKeyDown);
+    
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("copy", handleCopyPaste);
+      document.removeEventListener("cut", handleCopyPaste);
+      document.removeEventListener("paste", handleCopyPaste);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [recordViolation]);
+
+  // Fullscreen (simple version)
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (e) {}
+    };
+    
+    enterFullscreen();
+    
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !examSubmitted && !submitting) {
+        recordViolation("exit_fullscreen");
+        // Try to re-enter
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+    
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [recordViolation, examSubmitted, submitting]);
+
+  // Save before unload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!examSubmitted && Object.keys(answers).length > 0) {
+        saveAnswers(answers);
+        e.preventDefault();
+        e.returnValue = "You have unsaved answers. Are you sure?";
+      }
+    };
+    
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [answers, examSubmitted, saveAnswers]);
 
   const handleAnswerChange = (questionId: number, answer: string) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -254,78 +190,90 @@ export function ExamInterface({
   };
 
   const handleSubmit = async () => {
+    if (submitLockRef.current || examSubmitted || submitting) return;
+    
+    submitLockRef.current = true;
     setSubmitting(true);
+    
     try {
       const formData = new FormData();
       formData.append("registrationId", registrationId.toString());
       formData.append("answers", JSON.stringify(answers));
-
+      formData.append("warningCount", warningCount.toString());
+      
       const result = await submitExam(formData);
-
+      
       if (result.success) {
         localStorage.removeItem(`exam_${registrationId}_answers`);
-
+        setExamSubmitted(true);
+        
         // Exit fullscreen
         if (document.fullscreenElement) {
           await document.exitFullscreen();
         }
-
+        
         router.push("/thank-you");
       } else {
-        console.warn("Cheating detected");
+        alert(result.error || "Failed to submit exam");
+        submitLockRef.current = false;
+        setSubmitting(false);
       }
     } catch (error) {
-      console.warn("Cheating detected");
-    } finally {
+      console.error("Submit error:", error);
+      alert("Failed to submit. Please try again.");
+      submitLockRef.current = false;
       setSubmitting(false);
-      setShowConfirm(false);
     }
   };
 
   const handleTimeEnd = () => {
-    handleSubmit();
+    if (!examSubmitted && !submitting) {
+      handleSubmit();
+    }
   };
 
-  const progress = questions.length > 0 ? (Object.keys(answers).length / questions.length) * 100 : 0;
+  const progress = questions.length ? (Object.keys(answers).length / questions.length) * 100 : 0;
 
   if (questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Questions Found</h2>
-          <p className="text-gray-600">This exam has no questions configured yet.</p>
+          <h2 className="text-xl font-semibold">No Questions Found</h2>
+          <p className="text-gray-600">This exam has no questions configured.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Warning Banner */}
-      {warningCount > 0 && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm font-medium">
-          ⚠️ Warning: {warningCount}/5 cheating attempts detected. Your exam will be auto-submitted after 5 attempts.
+      {warningCount > 0 && warningCount < 10 && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white text-center py-2 text-sm">
+          ⚠️ Warning: {warningCount} unusual activities detected
+        </div>
+      )}
+      
+      {warningCount >= 10 && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm">
+          ⚠️ Exam flagged for review due to multiple violations
         </div>
       )}
 
       {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{examName}</h1>
+              <h1 className="text-xl font-bold">{examName}</h1>
               <p className="text-sm text-gray-500">
                 Question {currentQuestionIndex + 1} of {questions.length}
               </p>
             </div>
             <Timer durationMinutes={durationMinutes} onTimeEnd={handleTimeEnd} />
           </div>
-          {/* Progress Bar */}
           <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="h-full bg-green-500 transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
       </div>
@@ -333,35 +281,36 @@ export function ExamInterface({
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-4 gap-6">
-          {/* Question Navigation */}
+          {/* Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white border border-gray-200 rounded-xl p-4 sticky top-24">
-              <h3 className="font-semibold text-gray-900 mb-3">Questions</h3>
+            <div className="bg-white border rounded-xl p-4 sticky top-24">
+              <h3 className="font-semibold mb-3">Questions</h3>
               <div className="grid grid-cols-5 gap-2">
                 {questions.map((q, idx) => (
                   <button
                     key={q.id}
                     onClick={() => setCurrentQuestionIndex(idx)}
-                    className={`w-10 h-10 rounded-lg font-medium transition ${currentQuestionIndex === idx
+                    className={`w-10 h-10 rounded-lg font-medium transition ${
+                      currentQuestionIndex === idx
                         ? "bg-red-600 text-white"
                         : answers[q.id]
-                          ? "bg-green-100 text-green-700 border border-green-300"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                        ? "bg-green-100 text-green-700 border border-green-300"
+                        : "bg-gray-100 hover:bg-gray-200"
+                    }`}
                   >
                     {idx + 1}
                   </button>
                 ))}
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-3 text-sm">
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex gap-3 text-sm">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 bg-green-100 border border-green-300 rounded" />
-                    <span className="text-gray-600">Answered</span>
+                    <span>Answered</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 bg-gray-100 rounded" />
-                    <span className="text-gray-600">Pending</span>
+                    <span>Pending</span>
                   </div>
                 </div>
               </div>
@@ -377,26 +326,25 @@ export function ExamInterface({
               onAnswerChange={handleAnswerChange}
             />
 
-            {/* Navigation Buttons */}
             <div className="flex justify-between mt-6">
               <button
                 onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                 disabled={currentQuestionIndex === 0}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
               >
                 Previous
               </button>
               {currentQuestionIndex === questions.length - 1 ? (
                 <button
                   onClick={() => setShowConfirm(true)}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
                 >
                   Submit Exam
                 </button>
               ) : (
                 <button
                   onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
                 >
                   Next
                 </button>
@@ -406,47 +354,31 @@ export function ExamInterface({
         </div>
       </div>
 
-      {/* Fullscreen Warning Overlay */}
-      {!isFullscreen && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-          <div className="text-center text-white p-8">
-            <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Fullscreen Required</h2>
-            <p className="text-gray-300 mb-4">Please enter fullscreen mode to continue the exam.</p>
-            <button
-              onClick={() => document.documentElement.requestFullscreen()}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
-            >
-              Enter Fullscreen
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Submit Confirmation Modal */}
+      {/* Submit Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-3">Submit Exam?</h2>
+            <h2 className="text-xl font-bold mb-3">Submit Exam?</h2>
             <p className="text-gray-600 mb-6">
               You have answered {Object.keys(answers).length} out of {questions.length} questions.
-              Are you sure you want to submit?
+              {warningCount >= 10 && (
+                <span className="block mt-2 text-red-600">
+                  Warning: This exam has been flagged for review.
+                </span>
+              )}
+              Are you sure?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
               >
                 {submitting ? "Submitting..." : "Submit"}
               </button>

@@ -49,6 +49,7 @@ export default async function ExamsPage() {
     durationMinutes: exam.durationMinutes,
     totalMarks: exam.totalMarks,
     isLive: exam.isLive ?? false,
+    isPublic: exam.isPublic ?? false,
     isClosed: exam.isClosed ?? false,  // ADD THIS LINE
     resultAnnounced: exam.resultAnnounced ?? false,
     createdAt: exam.createdAt,
