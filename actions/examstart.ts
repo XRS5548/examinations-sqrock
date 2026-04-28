@@ -398,3 +398,33 @@ export async function batchCheatingLogs(formData: FormData) {
     };
   }
 }
+
+
+
+
+
+
+
+
+
+// actions/examstart.ts
+// Add this new function for logging exam activity
+
+export async function logExamActivity(
+  registrationId: number,
+  action: string,
+  data?: any
+) {
+  try {
+    await db.insert(examAttemptLogs).values({
+      registrationId,
+      action,
+      data: data || {},
+      createdAt: new Date(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error logging exam activity:", error);
+    return { success: false, error: "Failed to log activity" };
+  }
+}

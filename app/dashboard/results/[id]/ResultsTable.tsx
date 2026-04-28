@@ -1,7 +1,7 @@
 // components/dashboard/results/ResultsTable.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   Table,
@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, Filter, Download, Settings } from "lucide-react";
+import { Search, Eye, Filter, Download, Settings, Trophy, ArrowUpDown, Crown, Medal, FileText } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,9 +31,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ResultDetailsDialog } from "./ResultDetailsDialog"; 
+import { ResultDetailsDialog } from "./ResultDetailsDialog";
+import { StudentLogsDialog } from "./StudentLogsDialog";
 import { evaluateMCQForRegistration } from "@/actions/results2";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Registration = {
   id: number;
@@ -51,6 +53,8 @@ type Registration = {
   examResultAnnounced: boolean;
 };
 
+type SortOption = "rank" | "name" | "score" | "percentage" | "submittedAt";
+
 interface ResultsTableProps {
   initialRegistrations: Registration[];
 }
@@ -59,11 +63,19 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
   const [registrations, setRegistrations] = useState(initialRegistrations);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOption, setSortOption] = useState<SortOption>("rank");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
+  const [selectedLogsRegistration, setSelectedLogsRegistration] = useState<{
+    id: number;
+    studentName: string;
+    examName: string;
+  } | null>(null);
   const [evaluating, setEvaluating] = useState<number | null>(null);
   const [eligibilityDialogOpen, setEligibilityDialogOpen] = useState(false);
   const [eligibilityPercentage, setEligibilityPercentage] = useState<number>(40);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [topN, setTopN] = useState<number | null>(null);
+  const [showTopOnly, setShowTopOnly] = useState(false);
 
   const getStatus = (registration: Registration) => {
     if (registration.cheating) return "cheating";
@@ -97,13 +109,115 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
     return "text-red-600";
   };
 
-  const filteredRegistrations = registrations.filter(reg => {
-    const matchesSearch = reg.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reg.studentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reg.examName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || getStatus(reg) === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Calculate rank for each registration
+  const registrationsWithRank = useMemo(() => {
+    // Filter out cheating students from ranking
+    const validRegistrations = registrations.filter(reg => !reg.cheating && reg.submittedAt);
+    
+    // Sort by score (highest first) for ranking
+    const sortedByScore = [...validRegistrations].sort((a, b) => {
+      const percentageA = a.examTotalMarks > 0 ? (a.score / a.examTotalMarks) * 100 : 0;
+      const percentageB = b.examTotalMarks > 0 ? (b.score / b.examTotalMarks) * 100 : 0;
+      return percentageB - percentageA;
+    });
+
+    // Assign ranks
+    const rankMap = new Map<number, number>();
+    let currentRank = 1;
+    let prevPercentage = -1;
+    
+    sortedByScore.forEach((reg, index) => {
+      const percentage = reg.examTotalMarks > 0 ? (reg.score / reg.examTotalMarks) * 100 : 0;
+      if (prevPercentage !== percentage && index > 0) {
+        currentRank = index + 1;
+      }
+      rankMap.set(reg.id, currentRank);
+      prevPercentage = percentage;
+    });
+
+    return registrations.map(reg => ({
+      ...reg,
+      rank: reg.cheating || !reg.submittedAt ? null : rankMap.get(reg.id) || null,
+    }));
+  }, [registrations]);
+
+  // Sort registrations based on selected option
+  const sortedRegistrations = useMemo(() => {
+    const filtered = registrationsWithRank.filter(reg => {
+      const matchesSearch = reg.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           reg.studentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           reg.examName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || getStatus(reg) === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+
+    let sorted = [...filtered];
+
+    switch (sortOption) {
+      case "rank":
+        sorted.sort((a, b) => {
+          if (a.rank === null && b.rank === null) return 0;
+          if (a.rank === null) return 1;
+          if (b.rank === null) return -1;
+          return sortOrder === "desc" ? a.rank - b.rank : b.rank - a.rank;
+        });
+        break;
+      case "name":
+        sorted.sort((a, b) => {
+          const comparison = a.studentName.localeCompare(b.studentName);
+          return sortOrder === "desc" ? -comparison : comparison;
+        });
+        break;
+      case "score":
+        sorted.sort((a, b) => {
+          const comparison = b.score - a.score;
+          return sortOrder === "desc" ? comparison : -comparison;
+        });
+        break;
+      case "percentage":
+        sorted.sort((a, b) => {
+          const percentageA = a.examTotalMarks > 0 ? (a.score / a.examTotalMarks) * 100 : 0;
+          const percentageB = b.examTotalMarks > 0 ? (b.score / b.examTotalMarks) * 100 : 0;
+          const comparison = percentageB - percentageA;
+          return sortOrder === "desc" ? comparison : -comparison;
+        });
+        break;
+      case "submittedAt":
+        sorted.sort((a, b) => {
+          if (!a.submittedAt && !b.submittedAt) return 0;
+          if (!a.submittedAt) return 1;
+          if (!b.submittedAt) return -1;
+          const comparison = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+          return sortOrder === "desc" ? comparison : -comparison;
+        });
+        break;
+    }
+
+    // Apply top N filter
+    if (showTopOnly && topN && topN > 0) {
+      const topRanked = sorted.filter(reg => reg.rank !== null && reg.rank <= topN);
+      return topRanked;
+    }
+
+    return sorted;
+  }, [registrationsWithRank, searchTerm, statusFilter, sortOption, sortOrder, showTopOnly, topN]);
+
+  const getRankIcon = (rank: number | null) => {
+    if (!rank) return null;
+    if (rank === 1) return <Trophy className="h-4 w-4 text-yellow-500 inline mr-1" />;
+    if (rank === 2) return <Medal className="h-4 w-4 text-gray-400 inline mr-1" />;
+    if (rank === 3) return <Medal className="h-4 w-4 text-amber-600 inline mr-1" />;
+    return <span className="text-muted-foreground text-xs mr-1">#{rank}</span>;
+  };
+
+  const handleSort = (option: SortOption) => {
+    if (sortOption === option) {
+      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+    } else {
+      setSortOption(option);
+      setSortOrder("desc");
+    }
+  };
 
   const handleAutoEvaluate = async (registrationId: number) => {
     setEvaluating(registrationId);
@@ -123,8 +237,8 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
   };
 
   const exportToCSV = () => {
-    // Prepare CSV data
     const headers = [
+      "Rank",
       "S.No",
       "Roll Number",
       "Student Name",
@@ -138,15 +252,15 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
       "Submitted At"
     ];
 
-    const rows = filteredRegistrations.map((registration, index) => {
+    const rows = sortedRegistrations.map((registration, index) => {
       const percentage = registration.examTotalMarks > 0 
         ? (registration.score / registration.examTotalMarks) * 100 
         : 0;
       const status = getStatus(registration);
       const eligibility = status === "pass" ? "Eligible" : "Not Eligible";
-      const eligibilityColor = status === "pass" ? "GREEN" : "RED";
       
       return [
+        registration.rank || "N/A",
         index + 1,
         registration.rollNumber || "N/A",
         registration.studentName,
@@ -163,7 +277,6 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
       ];
     });
 
-    // Create CSV content
     const csvContent = [
       headers.join(","),
       ...rows.map(row => 
@@ -175,7 +288,6 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
       )
     ].join("\n");
 
-    // Add BOM for UTF-8 encoding
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -192,13 +304,51 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
   const updateEligibilityCriteria = () => {
     setEligibilityDialogOpen(false);
     toast.success(`Eligibility criteria updated to ${eligibilityPercentage}%`);
-    // Force re-render to update status badges
     setRegistrations([...registrations]);
   };
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const validRegistrations = registrations.filter(reg => !reg.cheating && reg.submittedAt);
+    const averageScore = validRegistrations.length > 0
+      ? validRegistrations.reduce((sum, reg) => sum + reg.score, 0) / validRegistrations.length
+      : 0;
+    const highestScore = Math.max(...validRegistrations.map(reg => reg.score), 0);
+    const totalStudents = registrations.length;
+    const eligibleCount = registrations.filter(reg => getStatus(reg) === "pass").length;
+    
+    return {
+      averageScore: averageScore.toFixed(1),
+      highestScore,
+      totalStudents,
+      eligibleCount,
+      eligiblePercentage: totalStudents > 0 ? ((eligibleCount / totalStudents) * 100).toFixed(1) : 0,
+    };
+  }, [registrations]);
 
   return (
     <>
       <div className="space-y-4">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Total Students</div>
+            <div className="text-2xl font-bold">{stats.totalStudents}</div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Average Score</div>
+            <div className="text-2xl font-bold">{stats.averageScore}</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Eligible Students</div>
+            <div className="text-2xl font-bold">{stats.eligibleCount} ({stats.eligiblePercentage}%)</div>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Highest Score</div>
+            <div className="text-2xl font-bold">{stats.highestScore}</div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-sm">
@@ -222,7 +372,58 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
                 <SelectItem value="cheating">Cheating</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Sort Options */}
+            <Select value={sortOption} onValueChange={(value: SortOption) => setSortOption(value)}>
+              <SelectTrigger className="w-[180px]">
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rank">Rank</SelectItem>
+                <SelectItem value="name">Student Name</SelectItem>
+                <SelectItem value="score">Score</SelectItem>
+                <SelectItem value="percentage">Percentage</SelectItem>
+                <SelectItem value="submittedAt">Submission Date</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Top N Filter */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showTopOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowTopOnly(!showTopOnly)}
+                className={showTopOnly ? "bg-gradient-to-r from-yellow-500 to-orange-500" : ""}
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                Top Ranks
+              </Button>
+              {showTopOnly && (
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={topN || 10}
+                  onChange={(e) => setTopN(parseInt(e.target.value) || 10)}
+                  className="w-20 h-9"
+                  placeholder="N"
+                />
+              )}
+            </div>
+
+            {/* Sort Order Toggle */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+              className="h-9"
+            >
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              {sortOrder === "desc" ? "Descending" : "Ascending"}
+            </Button>
           </div>
+
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -246,19 +447,75 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("rank")}
+                    className="p-0 h-auto font-semibold"
+                  >
+                    Rank
+                    {sortOption === "rank" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead>S.No</TableHead>
-                <TableHead>Student Name</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("name")}
+                    className="p-0 h-auto font-semibold"
+                  >
+                    Student Name
+                    {sortOption === "name" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Exam Name</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead>Percentage</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("score")}
+                    className="p-0 h-auto font-semibold"
+                  >
+                    Score
+                    {sortOption === "score" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("percentage")}
+                    className="p-0 h-auto font-semibold"
+                  >
+                    Percentage
+                    {sortOption === "percentage" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead>Status/Eligibility</TableHead>
-                <TableHead>Submitted At</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("submittedAt")}
+                    className="p-0 h-auto font-semibold"
+                  >
+                    Submitted At
+                    {sortOption === "submittedAt" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRegistrations.map((registration,index) => {
+              {sortedRegistrations.map((registration, index) => {
                 const percentage = registration.examTotalMarks > 0 
                   ? (registration.score / registration.examTotalMarks) * 100 
                   : 0;
@@ -266,8 +523,21 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
                 const eligibilityClass = getEligibilityClass(registration);
                 
                 return (
-                  <TableRow key={registration.id}>
-                    <TableCell>{index+1}</TableCell>
+                  <TableRow 
+                    key={registration.id}
+                    className={cn(
+                      registration.rank === 1 && "bg-yellow-50 dark:bg-yellow-950/20",
+                      registration.rank === 2 && "bg-gray-50 dark:bg-gray-950/20",
+                      registration.rank === 3 && "bg-amber-50 dark:bg-amber-950/20"
+                    )}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center">
+                        {getRankIcon(registration.rank)}
+                        <span>{registration.rank || "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">
                       {registration.studentName}
                     </TableCell>
@@ -286,13 +556,28 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedRegistration(registration)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedRegistration(registration)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedLogsRegistration({
+                            id: registration.id,
+                            studentName: registration.studentName,
+                            examName: registration.examName,
+                          })}
+                          title="View Logs"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -301,9 +586,19 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
           </Table>
         </div>
 
-        {filteredRegistrations.length === 0 && (
+        {sortedRegistrations.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             No results found
+          </div>
+        )}
+
+        {/* Rank Summary */}
+        {sortedRegistrations.length > 0 && (
+          <div className="bg-muted/50 rounded-lg p-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {sortedRegistrations.length} of {registrations.length} total students
+              {showTopOnly && topN && ` (Top ${topN} by rank)`}
+            </div>
           </div>
         )}
       </div>
@@ -350,12 +645,24 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Result Details Dialog */}
       {selectedRegistration && (
         <ResultDetailsDialog
           registration={selectedRegistration}
           open={!!selectedRegistration}
           onOpenChange={() => setSelectedRegistration(null)}
           onUpdate={() => window.location.reload()}
+        />
+      )}
+
+      {/* Student Logs Dialog */}
+      {selectedLogsRegistration && (
+        <StudentLogsDialog
+          registrationId={selectedLogsRegistration.id}
+          studentName={selectedLogsRegistration.studentName}
+          examName={selectedLogsRegistration.examName}
+          open={!!selectedLogsRegistration}
+          onOpenChange={() => setSelectedLogsRegistration(null)}
         />
       )}
     </>

@@ -7,7 +7,9 @@ import {
   studentAnswers, 
   questions, 
   options,
-  exams 
+  exams, 
+  examAttemptLogs,
+  cheatingLogs
 } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -225,5 +227,70 @@ export async function getPendingManualChecks(companyId: number) {
   } catch (error) {
     console.error("Get pending manual checks error:", error);
     return [];
+  }
+}
+
+
+export async function getStudentLogs(registrationId: number) {
+  try {
+    // Fetch cheating logs
+    const cheatingLogsData = await db
+      .select()
+      .from(cheatingLogs)
+      .where(eq(cheatingLogs.registrationId, registrationId))
+      .orderBy(cheatingLogs.createdAt);
+
+    // Fetch attempt logs
+    const attemptLogsData = await db
+      .select()
+      .from(examAttemptLogs)
+      .where(eq(examAttemptLogs.registrationId, registrationId))
+      .orderBy(examAttemptLogs.createdAt);
+
+    // Fetch student answers with question details
+    const answersData = await db
+      .select({
+        id: studentAnswers.id,
+        questionId: studentAnswers.questionId,
+        selectedOptionId: studentAnswers.selectedOptionId,
+        answerText: studentAnswers.answerText,
+        isCorrect: studentAnswers.isCorrect,
+        marksAwarded: studentAnswers.marksAwarded,
+        question: questions.question,
+        questionType: questions.questionType,
+        optionText: options.optionText,
+      })
+      .from(studentAnswers)
+      .leftJoin(questions, eq(studentAnswers.questionId, questions.id))
+      .leftJoin(options, eq(studentAnswers.selectedOptionId, options.id))
+      .where(eq(studentAnswers.registrationId, registrationId))
+      .orderBy(studentAnswers.id);
+
+    const formattedAnswers = answersData.map(answer => ({
+      id: answer.id,
+      questionId: answer.questionId,
+      question: answer.question || "Unknown Question",
+      selectedOption: answer.optionText || answer.answerText || "No answer",
+      answerText: answer.answerText || "",
+      isCorrect: answer.isCorrect || false,
+      marksAwarded: answer.marksAwarded || 0,
+      questionType: answer.questionType || "mcq",
+    }));
+
+    return {
+      success: true,
+      cheatingLogs: cheatingLogsData,
+      attemptLogs: attemptLogsData,
+      studentAnswers: formattedAnswers,
+    };
+  } catch (error) {
+    console.error("Error fetching student logs:", error);
+    return {
+      success: false,
+      error: "Failed to fetch student logs",
+      cheatingLogs: [],
+      attemptLogs: [],
+      studentAnswers: [],
+    };
   }
 }
