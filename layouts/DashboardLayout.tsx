@@ -1,6 +1,7 @@
+// app/dashboard/DashboardLayoutClient.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -34,6 +35,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/app/contexts/UserContext"; 
+import { Skeleton } from "@/components/ui/skeleton";
+import { logoutUser } from "@/actions/auth";
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -46,20 +50,33 @@ const navigationItems = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const pathname = usePathname();
   const router = useRouter();
+  const { user, loading, error } = useUser();
+
+  const userInitials = useMemo(() => {
+    if (!user) return "U";
+    const first = user.fname?.charAt(0) || "";
+    const last = user.lname?.charAt(0) || "";
+    return `${first}${last}`.toUpperCase() || "U";
+  }, [user]);
+
+  const userFullName = useMemo(() => {
+    if (!user) return "User";
+    const fname = user.fname || "";
+    const lname = user.lname || "";
+    return `${fname} ${lname}`.trim() || user.email.split("@")[0];
+  }, [user]);
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -70,10 +87,56 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const handleLogout = () => {
-    // Implement logout logic
-    router.push("/login");
+  const handleLogout = async () => {
+    await logoutUser();
   };
+
+  const filteredNavItems = useMemo(() => {
+    if (!searchQuery) return navigationItems;
+    return navigationItems.filter(item =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-zinc-50 dark:bg-zinc-900">
+        <div className="w-64 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800">
+          <div className="flex h-16 items-center px-4 border-b">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="ml-2 h-4 w-32" />
+          </div>
+          <div className="p-4 space-y-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <Skeleton key={i} className="h-10 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="h-16 border-b bg-white dark:bg-zinc-950">
+            <div className="flex h-full items-center justify-between px-6">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+          </div>
+          <div className="p-6">
+            <Skeleton className="h-96 w-full rounded-lg" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+        <div className="text-center space-y-4">
+          <p className="text-red-500">Error loading user data: {error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -87,8 +150,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           )}
         >
           <div className="flex h-full flex-col">
-            {/* Logo */}
-            <div className="flex h-16 items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="flex h-16 items-center justify-between px-4 border-b">
               {sidebarOpen ? (
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
@@ -109,18 +171,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 onClick={toggleSidebar}
                 className="hidden md:flex h-8 w-8"
               >
-                {sidebarOpen ? (
-                  <ChevronLeft className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </Button>
             </div>
 
-            {/* Navigation */}
+            
+
             <ScrollArea className="flex-1 px-3 py-4">
               <nav className="space-y-2">
-                {navigationItems.map((item) => {
+                {filteredNavItems.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   return (
@@ -137,9 +196,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             )}
                           >
                             <Icon className={cn("h-5 w-5", !sidebarOpen && "h-5 w-5")} />
-                            {sidebarOpen && (
-                              <span className="text-sm font-medium">{item.name}</span>
-                            )}
+                            {sidebarOpen && <span className="text-sm font-medium">{item.name}</span>}
                           </div>
                         </Link>
                       </TooltipTrigger>
@@ -154,78 +211,65 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </nav>
             </ScrollArea>
 
-            {/* Bottom section if needed */}
-            <div className="border-t border-zinc-200 dark:border-zinc-800 p-4">
+            <div className="border-t p-4">
               {sidebarOpen ? (
-                <div className="text-xs text-zinc-400 text-center">
-                  v1.0.0
+                <div className="space-y-2">
+                  {user?.company && (
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                      {user.company.name}
+                    </div>
+                  )}
+                  <div className="text-xs text-zinc-400">v1.0.0</div>
                 </div>
               ) : (
-                <div className="text-center text-xs text-zinc-400">
-                  v1.0
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-center text-xs text-zinc-400 cursor-default">v1.0</div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{user?.company?.name || "ExaminerMax"}</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
         </aside>
 
-        {/* Overlay for mobile */}
         {isMobile && sidebarOpen && (
-          <div
-            className="fixed inset-0 z-30 bg-black/50 transition-opacity duration-300"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* Main Content */}
-        <div
-          className={cn(
-            "flex-1 flex flex-col overflow-hidden transition-all duration-300",
-            sidebarOpen ? "md:ml-64" : "md:ml-20"
-          )}
-        >
-          {/* Top Navbar */}
-          <header className="sticky top-0 z-30 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+        <div className={cn("flex-1 flex flex-col overflow-hidden", sidebarOpen ? "md:ml-64" : "md:ml-20")}>
+          <header className="sticky top-0 z-30 bg-white dark:bg-zinc-950 border-b">
             <div className="flex h-16 items-center justify-between px-4 md:px-6">
               <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className="md:hidden"
-                >
-                  {sidebarOpen ? (
-                    <X className="h-5 w-5" />
-                  ) : (
-                    <Menu className="h-5 w-5" />
-                  )}
+                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="md:hidden">
+                  {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </Button>
-                <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                <h1 className="text-xl font-semibold">
                   {navigationItems.find((item) => item.href === pathname)?.name || "Dashboard"}
                 </h1>
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Search */}
                 <div className="hidden md:block">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     <Input
                       type="search"
                       placeholder="Search..."
-                      className="h-9 w-64 pl-9 pr-4 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-lg"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-64 pl-9 pr-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg"
                     />
                   </div>
                 </div>
 
-                {/* User Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src="/avatars/01.png" alt="User" />
+                        <AvatarImage src={user?.company?.logoUrl || "/avatars/01.png"} alt={userFullName} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
-                          JD
+                          {userInitials}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -233,8 +277,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">John Doe</p>
-                        <p className="text-xs leading-none text-zinc-500">john@example.com</p>
+                        <p className="text-sm font-medium leading-none">{userFullName}</p>
+                        <p className="text-xs leading-none text-zinc-500">{user?.email}</p>
+                        {user?.company && (
+                          <p className="text-xs leading-none text-zinc-400 mt-1">{user.company.name}</p>
+                        )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -242,6 +289,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
@@ -252,11 +300,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto">
-            <div className="container mx-auto p-4 md:p-6">
-              {children}
-            </div>
+            <div className="container mx-auto p-4 md:p-6">{children}</div>
           </main>
         </div>
       </div>

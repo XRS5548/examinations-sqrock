@@ -246,6 +246,7 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>S.No</TableHead>
                 <TableHead>Student Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Exam Name</TableHead>
@@ -257,7 +258,7 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRegistrations.map((registration) => {
+              {filteredRegistrations.map((registration,index) => {
                 const percentage = registration.examTotalMarks > 0 
                   ? (registration.score / registration.examTotalMarks) * 100 
                   : 0;
@@ -266,6 +267,7 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
                 
                 return (
                   <TableRow key={registration.id}>
+                    <TableCell>{index+1}</TableCell>
                     <TableCell className="font-medium">
                       {registration.studentName}
                     </TableCell>

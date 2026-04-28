@@ -4,6 +4,7 @@ import NextTopLoader from 'nextjs-toploader';
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { UserProvider } from "./contexts/UserContext";
 
 const robotoHeading = Roboto({ subsets: ['latin'], variable: '--font-heading' });
 
@@ -159,13 +160,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable, robotoHeading.variable)}
-    >
-      <Toaster />
-      <NextTopLoader color="red" />
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en">
+      <body className={inter.className}>
+        <Toaster/>
+        <NextTopLoader color="red"/>
+        <UserProvider>
+          {children}
+        </UserProvider>
+      </body>
     </html>
   );
 }
