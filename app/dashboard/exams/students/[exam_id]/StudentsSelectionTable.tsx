@@ -1,7 +1,7 @@
 // components/dashboard/exams/students/StudentsSelectionTable.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users } from "lucide-react";
-import { assignStudentsToExam } from "@/actions/examStudents"; 
+import { Search, Users, Upload, FileSpreadsheet } from "lucide-react";
+import { assignStudentsToExam } from "@/actions/examStudents";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 type Student = {
   id: number;
@@ -43,6 +44,8 @@ export function StudentsSelectionTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredStudents = students.filter(student =>
     student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,6 +71,186 @@ export function StudentsSelectionTable({
     }
     setSelectedStudents(newSelected);
     setSelectAll(newSelected.size === filteredStudents.length && filteredStudents.length > 0);
+  };
+
+  const processFile = async (file: File) => {
+    setFileUploading(true);
+    try {
+      const data = await readFile(file);
+      const emails = extractEmailsFromFile(data, file.name);
+      
+      if (emails.length === 0) {
+        toast.error("No valid emails found in the file. Please ensure there's an email column.");
+        return;
+      }
+
+      // Find matching students based on email
+      const matchedStudents = students.filter(student => 
+        student.email && emails.includes(student.email.toLowerCase())
+      );
+
+      if (matchedStudents.length === 0) {
+        toast.error(`No matching students found for the ${emails.length} email(s) in the file.`);
+        return;
+      }
+
+      // Select matched students
+      const newSelected = new Set(selectedStudents);
+      matchedStudents.forEach(student => newSelected.add(student.id));
+      setSelectedStudents(newSelected);
+      setSelectAll(newSelected.size === filteredStudents.length && filteredStudents.length > 0);
+
+      toast.success(`Selected ${matchedStudents.length} student(s) from file. Total selected: ${newSelected.size}`);
+      
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Failed to process file. Please check the format.");
+    } finally {
+      setFileUploading(false);
+    }
+  };
+
+  const readFile = (file: File): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          if (file.name.endsWith('.csv')) {
+            // Parse CSV
+            const text = data as string;
+            const rows = text.split('\n').map(row => row.split(','));
+            resolve(rows);
+          } else {
+            // Parse Excel
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+            resolve(jsonData);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  };
+
+  type CsvRow = string[];
+type ExcelRow = Record<string, string | undefined>;
+
+const extractEmailsFromFile = (
+  data: CsvRow[] | ExcelRow[],
+  fileName: string
+): string[] => {
+  const emails = new Set<string>();
+
+  if (!Array.isArray(data) || data.length === 0) {
+    return [];
+  }
+
+  if (fileName.endsWith(".csv")) {
+    // CSV Handling
+    const headers = (data[0] as CsvRow).map((cell) =>
+      String(cell).toLowerCase()
+    );
+
+    const emailColumnIndex = headers.findIndex(
+      (header) =>
+        header.includes("email") ||
+        header === "e-mail" ||
+        header === "mail"
+    );
+
+    if (emailColumnIndex === -1) {
+      toast.error("No email column found in CSV file");
+      return [];
+    }
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i] as CsvRow;
+
+      const email = row[emailColumnIndex]?.toLowerCase().trim();
+
+      if (email && isValidEmail(email)) {
+        emails.add(email);
+      }
+    }
+  } else {
+    // Excel Handling
+    const excelData = data as ExcelRow[];
+    const firstRow = excelData[0];
+
+    const emailColumns: string[] = [];
+
+    Object.keys(firstRow).forEach((key) => {
+      const lowerKey = key.toLowerCase();
+
+      if (
+        lowerKey.includes("email") ||
+        lowerKey === "e-mail" ||
+        lowerKey === "mail"
+      ) {
+        emailColumns.push(key);
+      }
+    });
+
+    if (!emailColumns.length) {
+      toast.error(
+        "No email column found in Excel file. Look for columns named Email, E-mail etc."
+      );
+      return [];
+    }
+
+    emailColumns.forEach((column) => {
+      excelData.forEach((row) => {
+        const value = row[column];
+
+        if (typeof value === "string") {
+          const email = value.trim().toLowerCase();
+
+          if (isValidEmail(email)) {
+            emails.add(email);
+          }
+        }
+      });
+    });
+  }
+
+  return [...emails];
+};
+
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check file type
+    const validTypes = ['.xlsx', '.xls', '.csv'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    if (!validTypes.includes(fileExtension)) {
+      toast.error("Please upload an Excel (.xlsx, .xls) or CSV (.csv) file");
+      return;
+    }
+    
+    processFile(file);
   };
 
   const handleAssign = async () => {
@@ -110,7 +293,7 @@ export function StudentsSelectionTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -120,9 +303,29 @@ export function StudentsSelectionTable({
             className="pl-9"
           />
         </div>
-        <Button onClick={handleAssign} disabled={loading || selectedStudents.size === 0}>
-          {loading ? "Assigning..." : `Assign Selected (${selectedStudents.size})`}
-        </Button>
+        
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={fileUploading}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            {fileUploading ? "Processing..." : "Upload Excel/CSV"}
+          </Button>
+          
+          <Button onClick={handleAssign} disabled={loading || selectedStudents.size === 0}>
+            {loading ? "Assigning..." : `Assign Selected (${selectedStudents.size})`}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border">
@@ -162,6 +365,12 @@ export function StudentsSelectionTable({
       {filteredStudents.length === 0 && searchTerm && (
         <div className="text-center py-8 text-muted-foreground">
           No students found matching "{searchTerm}"
+        </div>
+      )}
+      
+      {selectedStudents.size > 0 && (
+        <div className="text-sm text-muted-foreground">
+          {selectedStudents.size} student(s) selected
         </div>
       )}
     </div>

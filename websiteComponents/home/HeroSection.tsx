@@ -116,9 +116,9 @@ export function HeroSection({ allExams }: HeroSectionProps) {
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600 to-red-700 p-8 text-white">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10">
-              <span className="text-sm font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full inline-block mb-4">
+              {/* <span className="text-sm font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full inline-block mb-4">
                 Trusted by 1000+ companies
-              </span>
+              </span> */}
               <h1 className="text-4xl font-bold mb-4">
                 Crack Every Exam.
                 <br />
