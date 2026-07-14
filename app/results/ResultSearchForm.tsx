@@ -73,7 +73,7 @@ export function ResultSearchForm() {
     try {
       // Dynamically import html2canvas and jspdf
       const html2canvas = (await import("html2canvas")).default;
-      const { jsPDF } = await import("jspdf");
+      const jsPDF = (await import("jspdf")).default;
       
       const element = resultRef.current;
       const canvas = await html2canvas(element, {
