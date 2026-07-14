@@ -496,15 +496,15 @@ export function ExamInterface({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold">No Questions Found</h2>
-          <p className="text-gray-600">This exam has no questions configured.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">No Questions Found</h2>
+          <p className="text-gray-600 dark:text-zinc-400">This exam has no questions configured.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
       {/* Warning Banner */}
       {warningCount > 0 && warningCount < 10 && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white text-center py-2 text-sm">
@@ -519,18 +519,18 @@ export function ExamInterface({
       )}
 
       {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
+      <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b dark:border-zinc-800 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold">{examName}</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">{examName}</h1>
+              <p className="text-sm text-gray-500 dark:text-zinc-400">
                 Question {currentQuestionIndex + 1} of {questions.length}
               </p>
             </div>
             <Timer durationMinutes={durationMinutes} onTimeEnd={handleTimeEnd} />
           </div>
-          <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="mt-3 h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
             <div className="h-full bg-green-500 transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
@@ -541,8 +541,8 @@ export function ExamInterface({
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white border rounded-xl p-4 sticky top-24">
-              <h3 className="font-semibold mb-3">Questions</h3>
+            <div className="bg-white dark:bg-zinc-950 border dark:border-zinc-800 rounded-xl p-4 sticky top-24">
+              <h3 className="font-semibold mb-3 text-gray-900 dark:text-zinc-100">Questions</h3>
               <div className="grid grid-cols-5 gap-2">
                 {questions.map((q, idx) => (
                   <button
@@ -552,23 +552,23 @@ export function ExamInterface({
                       currentQuestionIndex === idx
                         ? "bg-red-600 text-white"
                         : answers[q.id]
-                        ? "bg-green-100 text-green-700 border border-green-300"
-                        : "bg-gray-100 hover:bg-gray-200"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700"
+                        : "bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-900 dark:text-zinc-100"
                     }`}
                   >
                     {idx + 1}
                   </button>
                 ))}
               </div>
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-4 pt-4 border-t dark:border-zinc-700">
                 <div className="flex gap-3 text-sm">
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-green-100 border border-green-300 rounded" />
-                    <span>Answered</span>
+                    <div className="w-3 h-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded" />
+                    <span className="text-gray-600 dark:text-zinc-400">Answered</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-gray-100 rounded" />
-                    <span>Pending</span>
+                    <div className="w-3 h-3 bg-gray-100 dark:bg-zinc-800 rounded" />
+                    <span className="text-gray-600 dark:text-zinc-400">Pending</span>
                   </div>
                 </div>
               </div>
@@ -588,7 +588,7 @@ export function ExamInterface({
               <button
                 onClick={() => handleQuestionNavigation(Math.max(0, currentQuestionIndex - 1))}
                 disabled={currentQuestionIndex === 0}
-                className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                className="px-6 py-2 border dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition disabled:opacity-50 text-gray-700 dark:text-zinc-300"
               >
                 Previous
               </button>
@@ -615,9 +615,9 @@ export function ExamInterface({
       {/* Submit Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-3">Submit Exam?</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-zinc-950 rounded-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-zinc-100">Submit Exam?</h2>
+            <p className="text-gray-600 dark:text-zinc-400 mb-6">
               You have answered {Object.keys(answers).length} out of {questions.length} questions.
               {warningCount >= 10 && (
                 <span className="block mt-2 text-red-600">
@@ -629,7 +629,7 @@ export function ExamInterface({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300"
               >
                 Cancel
               </button>

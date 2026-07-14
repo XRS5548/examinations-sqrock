@@ -207,24 +207,24 @@ export function QuestionCard({
   }, []);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition">
+    <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl p-6 hover:shadow-md transition">
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
+            <span className="text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">
               Question {index + 1}
             </span>
             {question.type === "subjective" && (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
                 Subjective
               </span>
             )}
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
             {question.text}
           </h3>
         </div>
-        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+        <span className="text-sm text-gray-500 dark:text-zinc-400 bg-gray-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
           {question.marks} {question.marks === 1 ? "mark" : "marks"}
         </span>
       </div>
@@ -236,8 +236,8 @@ export function QuestionCard({
               key={option.id}
               className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 selectedOption === option.id.toString()
-                  ? "border-red-500 bg-red-50"
-                  : "border-gray-200 hover:bg-gray-50"
+                  ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                  : "border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
               }`}
             >
               <input
@@ -249,7 +249,7 @@ export function QuestionCard({
                 className="w-4 h-4 text-red-600 focus:ring-red-500"
                 aria-label={`Option ${option.id}`}
               />
-              <span className="text-gray-700 flex-1">{option.optionText}</span>
+              <span className="text-gray-700 dark:text-zinc-300 flex-1">{option.optionText}</span>
               {selectedOption === option.id.toString() && (
                 <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -281,8 +281,8 @@ export function QuestionCard({
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-y transition ${
-                isFocused ? "border-red-300" : "border-gray-300"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-y transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 ${
+                isFocused ? "border-red-300 dark:border-red-600" : "border-gray-300 dark:border-zinc-600"
               }`}
               placeholder="Write your answer here... (Be detailed and specific)"
               aria-label="Your answer"
@@ -290,7 +290,7 @@ export function QuestionCard({
             
             {/* Word/Character Counter */}
             {showWordCount && localAnswer && (
-              <div className="absolute bottom-3 right-3 text-xs text-gray-400 bg-white/90 px-2 py-1 rounded">
+              <div className="absolute bottom-3 right-3 text-xs text-gray-400 dark:text-zinc-500 bg-white/90 dark:bg-zinc-800/90 px-2 py-1 rounded">
                 {wordCount} {wordCount === 1 ? "word" : "words"} • {charCount} characters
               </div>
             )}
@@ -298,7 +298,7 @@ export function QuestionCard({
           
           {/* Action buttons for subjective answers */}
           <div className="flex justify-between items-center mt-3">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-zinc-400">
               {!allowPaste && (
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,8 +330,8 @@ export function QuestionCard({
           
           {/* Tips for subjective answers */}
           {question.type === "subjective" && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <p className="text-xs text-blue-800">
+            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-300">
                 <strong>💡 Tip:</strong> Write a clear, well-structured answer. Include relevant examples and explanations to maximize your marks.
               </p>
             </div>
@@ -341,7 +341,7 @@ export function QuestionCard({
       
       {/* Answer status indicator */}
       {(selectedOption || localAnswer) && (
-        <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-700">
           <p className="text-xs text-green-600 flex items-center gap-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

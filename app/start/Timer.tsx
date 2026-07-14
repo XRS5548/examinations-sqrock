@@ -31,7 +31,7 @@ export function Timer({ durationMinutes, onTimeEnd }: TimerProps) {
   const isLow = timeLeft < 300; // Less than 5 minutes
 
   return (
-    <div className={`font-mono text-xl font-bold ${isLow ? "text-red-600" : "text-gray-900"}`}>
+    <div className={`font-mono text-xl font-bold ${isLow ? "text-red-600" : "text-gray-900 dark:text-zinc-100"}`}>
       {hours > 0 && `${hours}:`}
       {minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
     </div>

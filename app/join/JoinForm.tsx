@@ -144,18 +144,18 @@ export function JoinForm() {
 
   return (
     <>
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+      <div className="max-w-md w-full bg-white dark:bg-zinc-950 rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-2xl">EM</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Join Your Exam</h1>
-          <p className="text-gray-500 mt-2">Enter your credentials to start the exam</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Join Your Exam</h1>
+          <p className="text-gray-500 dark:text-zinc-400 mt-2">Enter your credentials to start the exam</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="rollNumber" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="rollNumber" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">
               Roll Number
             </label>
             <input
@@ -163,7 +163,7 @@ export function JoinForm() {
               id="rollNumber"
               value={rollNumber}
               onChange={(e) => setRollNumber(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
               placeholder="e.g., SQR001"
               required
               disabled={loading}
@@ -179,7 +179,7 @@ export function JoinForm() {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
               placeholder="student@example.com"
               required
               disabled={loading}
@@ -187,7 +187,7 @@ export function JoinForm() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -207,12 +207,12 @@ export function JoinForm() {
         <DialogContent className="min-w-[70vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex justify-between items-center mb-4">
-              <DialogTitle className="text-2xl font-bold text-gray-900">
+              <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
                 {content.title}
               </DialogTitle>
               
               {/* Language Switcher */}
-              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                 <Button
                   variant={language === "english" ? "default" : "ghost"}
                   size="sm"
@@ -234,8 +234,8 @@ export function JoinForm() {
               </div>
             </div>
             
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-2 text-red-700">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
                 <AlertTriangle className="h-5 w-5" />
                 <span className="font-semibold">{content.warning}</span>
               </div>
@@ -245,13 +245,13 @@ export function JoinForm() {
           <div className="space-y-6">
             {/* Rules Section */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-zinc-100">
                 <Shield className="h-5 w-5 text-red-600" />
                 Exam Rules & Regulations
               </h3>
               <div className="grid gap-2">
                 {content.rules.map((rule, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm text-gray-600">
+                  <div key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-zinc-400">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
                     <span>{rule}</span>
                   </div>
@@ -261,13 +261,13 @@ export function JoinForm() {
 
             {/* Technical Instructions */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-zinc-100">
                 <Monitor className="h-5 w-5 text-red-600" />
                 Technical Instructions
               </h3>
               <div className="grid gap-2">
                 {content.technical.map((instruction, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm text-gray-600">
+                  <div key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-zinc-400">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                     <span>{instruction}</span>
                   </div>
@@ -277,14 +277,14 @@ export function JoinForm() {
 
             {/* Consequences */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-zinc-100">
                 <Ban className="h-5 w-5 text-red-600" />
                 Violation Consequences
               </h3>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="space-y-2">
                   {content.consequences.map((consequence, index) => (
-                    <div key={index} className="flex items-start gap-2 text-sm text-yellow-800">
+                    <div key={index} className="flex items-start gap-2 text-sm text-yellow-800 dark:text-yellow-300">
                       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                       <span>{consequence}</span>
                     </div>
@@ -294,10 +294,10 @@ export function JoinForm() {
             </div>
 
             {/* Timer Warning */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Clock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
+                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800 dark:text-blue-300">
                   <p className="font-semibold mb-1">Important Timer Information:</p>
                   <p>The exam timer will start immediately after you click &quot;Start Exam&quot;. Make sure you have everything ready before proceeding.</p>
                 </div>
@@ -305,7 +305,7 @@ export function JoinForm() {
             </div>
 
             {/* Agreement Checkbox */}
-            <div className="flex items-start space-x-3 pt-4 border-t border-gray-200">
+            <div className="flex items-start space-x-3 pt-4 border-t border-gray-200 dark:border-zinc-700">
               <Checkbox
                 id="agree"
                 checked={agreed}
@@ -314,7 +314,7 @@ export function JoinForm() {
               />
               <Label
                 htmlFor="agree"
-                className="text-sm text-gray-700 cursor-pointer"
+                className="text-sm text-gray-700 dark:text-zinc-300 cursor-pointer"
               >
                 {content.agreeText}
               </Label>

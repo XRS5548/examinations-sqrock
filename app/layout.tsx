@@ -5,6 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { UserProvider } from "./contexts/UserContext";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const robotoHeading = Roboto({ subsets: ['latin'], variable: '--font-heading' });
 
@@ -160,13 +161,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Toaster/>
-        <NextTopLoader color="red"/>
-        <UserProvider>
-          {children}
-        </UserProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Toaster/>
+          <NextTopLoader color="red"/>
+          <UserProvider>
+            {children}
+          </UserProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
