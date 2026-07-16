@@ -33,7 +33,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { ResultDetailsDialog } from "./ResultDetailsDialog";
 import { StudentLogsDialog } from "./StudentLogsDialog";
-import { evaluateMCQForRegistration } from "@/actions/results2";
+import { evaluateMCQForRegistration, autoEvaluateAllMCQ, clearCheatingStatus } from "@/actions/results2";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +72,7 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
     examName: string;
   } | null>(null);
   const [evaluating, setEvaluating] = useState<number | null>(null);
+  const [evaluatingAll, setEvaluatingAll] = useState(false);
   const [eligibilityDialogOpen, setEligibilityDialogOpen] = useState(false);
   const [eligibilityPercentage, setEligibilityPercentage] = useState<number>(40);
   const [topN, setTopN] = useState<number | null>(null);
@@ -216,6 +217,28 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
     } else {
       setSortOption(option);
       setSortOrder("desc");
+    }
+  };
+
+  const handleAutoEvaluateAll = async () => {
+    setEvaluatingAll(true);
+    try {
+      const examId = registrations[0]?.examId;
+      if (!examId) {
+        toast.error("No exam found");
+        return;
+      }
+      const result = await autoEvaluateAllMCQ(examId);
+      if (result.success) {
+        toast.success(`Auto-evaluated ${result.evaluatedCount} students successfully`);
+        window.location.reload();
+      } else {
+        toast.error(result.error || "Failed to auto-evaluate");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setEvaluatingAll(false);
     }
   };
 
@@ -427,6 +450,13 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={handleAutoEvaluateAll}
+              disabled={evaluatingAll}
+            >
+              {evaluatingAll ? "Evaluating..." : "Auto-Evaluate All MCQ"}
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setEligibilityDialogOpen(true)}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -577,6 +607,29 @@ export function ResultsTable({ initialRegistrations }: ResultsTableProps) {
                         >
                           <FileText className="h-4 w-4" />
                         </Button>
+                        {registration.cheating && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (confirm("Clear cheating status for this student?")) {
+                                const result = await clearCheatingStatus(registration.id);
+                                if (result.success) {
+                                  toast.success("Cheating status cleared");
+                                  window.location.reload();
+                                } else {
+                                  toast.error(result.error || "Failed to clear");
+                                }
+                              }
+                            }}
+                            title="Clear Cheating"
+                            className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

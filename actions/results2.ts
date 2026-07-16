@@ -11,7 +11,7 @@ import {
   examAttemptLogs,
   cheatingLogs
 } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserCompany } from "./company";
@@ -195,6 +195,124 @@ export async function calculateFinalScore(registrationId: number) {
   } catch (error) {
     console.error("Calculate final score error:", error);
     return { success: false, error: "Failed to calculate score" };
+  }
+}
+
+export async function autoEvaluateAllMCQ(examId: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const company = await getUserCompany();
+    if (!company) {
+      return { success: false, error: "No company found" };
+    }
+
+    // Verify exam belongs to this company
+    const exam = await db.select()
+      .from(exams)
+      .where(and(eq(exams.id, examId), eq(exams.companyId, company.id)))
+      .limit(1);
+
+    if (exam.length === 0) {
+      return { success: false, error: "Exam not found" };
+    }
+
+    // Get all submitted registrations for this exam
+    const registrations = await db.select()
+      .from(examRegistrations)
+      .where(and(eq(examRegistrations.examId, examId), isNotNull(examRegistrations.submittedAt)));
+
+    let evaluatedCount = 0;
+    let errorCount = 0;
+
+    for (const registration of registrations) {
+      try {
+        // Get all answers for this registration
+        const answers = await db.select()
+          .from(studentAnswers)
+          .where(eq(studentAnswers.registrationId, registration.id));
+
+        let totalScore = 0;
+
+        for (const answer of answers) {
+          if (!answer.questionId) continue;
+
+          const question = await db.select()
+            .from(questions)
+            .where(eq(questions.id, answer.questionId))
+            .limit(1);
+
+          if (question.length === 0) continue;
+          const currentQuestion = question[0];
+
+          if (currentQuestion.questionType === "mcq" && answer.selectedOptionId) {
+            const option = await db.select()
+              .from(options)
+              .where(eq(options.id, answer.selectedOptionId))
+              .limit(1);
+
+            const isCorrect = option.length > 0 && option[0].isCorrect;
+            const marksAwarded = isCorrect ? (currentQuestion.marks || 0) : 0;
+
+            await db.update(studentAnswers)
+              .set({
+                isCorrect: isCorrect,
+                marksAwarded: marksAwarded,
+              })
+              .where(eq(studentAnswers.id, answer.id));
+
+            totalScore += marksAwarded;
+          } else if (currentQuestion.questionType === "subjective" && answer.marksAwarded) {
+            totalScore += answer.marksAwarded;
+          }
+        }
+
+        // Update registration score
+        await db.update(examRegistrations)
+          .set({ score: totalScore })
+          .where(eq(examRegistrations.id, registration.id));
+
+        evaluatedCount++;
+      } catch (err) {
+        console.error(`Error evaluating registration ${registration.id}:`, err);
+        errorCount++;
+      }
+    }
+
+    revalidatePath("/dashboard/results");
+
+    return {
+      success: true,
+      evaluatedCount,
+      errorCount,
+      totalRegistrations: registrations.length,
+    };
+  } catch (error) {
+    console.error("Auto evaluate all MCQ error:", error);
+    return { success: false, error: "Failed to auto-evaluate all MCQ answers" };
+  }
+}
+
+export async function clearCheatingStatus(registrationId: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    await db.update(examRegistrations)
+      .set({ cheating: false })
+      .where(eq(examRegistrations.id, registrationId));
+
+    revalidatePath("/dashboard/results");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Clear cheating error:", error);
+    return { success: false, error: "Failed to clear cheating status" };
   }
 }
 
