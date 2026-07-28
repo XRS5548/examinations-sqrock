@@ -3,6 +3,28 @@
 
 import { useState, useRef } from "react";
 import { searchStudentResult } from "@/actions/results-public";
+import { 
+  Loader2, 
+  Download, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle, 
+  Search, 
+  User, 
+  Mail, 
+  Award, 
+  Calendar, 
+  TrendingUp, 
+  Users,
+  FileText,
+  Printer
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
 interface ResultData {
   id: number;
@@ -18,13 +40,261 @@ interface ResultData {
   rank?: number;
 }
 
+// PDF Styles
+const pdfStyles = StyleSheet.create({
+  page: {
+    padding: 40,
+    backgroundColor: '#ffffff',
+    fontFamily: 'Helvetica',
+  },
+  header: {
+    backgroundColor: '#dc2626',
+    padding: 20,
+    marginBottom: 20,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: '#fca5a5',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  rollNumberBox: {
+    backgroundColor: '#f3f4f6',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    borderStyle: 'dashed',
+  },
+  rollNumberLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  rollNumberValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    letterSpacing: 2,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+  },
+  infoLabel: {
+    width: 120,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  infoValue: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1f2937',
+    fontWeight: 'medium',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    marginVertical: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusPass: {
+    backgroundColor: '#dcfce7',
+    color: '#166534',
+  },
+  statusFail: {
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+  },
+  statusCheating: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+  },
+  footer: {
+    marginTop: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 10,
+    color: '#9ca3af',
+  },
+  watermark: {
+    position: 'absolute',
+    bottom: 40,
+    right: 40,
+    fontSize: 8,
+    color: '#e5e7eb',
+    transform: 'rotate(-30deg)',
+  },
+});
+
+// PDF Document Component
+const ResultPDF = ({ result }: { result: ResultData }) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      {/* Header */}
+      <View style={pdfStyles.header}>
+        <View>
+          <Text style={pdfStyles.headerTitle}>Result Card</Text>
+          <Text style={pdfStyles.headerSubtitle}>
+            Generated on {new Date().toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={pdfStyles.headerRight}>
+          <Text style={{ color: '#ffffff', fontSize: 10, opacity: 0.8 }}>ID: #{result.id}</Text>
+        </View>
+      </View>
+
+      {/* Roll Number */}
+      <View style={pdfStyles.rollNumberBox}>
+        <Text style={pdfStyles.rollNumberLabel}>Roll Number</Text>
+        <Text style={pdfStyles.rollNumberValue}>{result.rollNumber}</Text>
+      </View>
+
+      {/* Student Info */}
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Student Details</Text>
+        <View style={pdfStyles.infoRow}>
+          <Text style={pdfStyles.infoLabel}>Name:</Text>
+          <Text style={pdfStyles.infoValue}>{result.studentName}</Text>
+        </View>
+        <View style={pdfStyles.infoRow}>
+          <Text style={pdfStyles.infoLabel}>Email:</Text>
+          <Text style={pdfStyles.infoValue}>{result.studentEmail}</Text>
+        </View>
+        <View style={pdfStyles.infoRow}>
+          <Text style={pdfStyles.infoLabel}>Exam:</Text>
+          <Text style={pdfStyles.infoValue}>{result.examName}</Text>
+        </View>
+        <View style={pdfStyles.infoRow}>
+          <Text style={pdfStyles.infoLabel}>Submitted:</Text>
+          <Text style={pdfStyles.infoValue}>
+            {new Date(result.submittedAt).toLocaleString()}
+          </Text>
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Performance</Text>
+        <View style={pdfStyles.statsGrid}>
+          <View style={pdfStyles.statBox}>
+            <Text style={pdfStyles.statValue}>{result.score}</Text>
+            <Text style={pdfStyles.statLabel}>Score</Text>
+          </View>
+          <View style={pdfStyles.statBox}>
+            <Text style={pdfStyles.statValue}>{result.percentage.toFixed(1)}%</Text>
+            <Text style={pdfStyles.statLabel}>Percentage</Text>
+          </View>
+          <View style={pdfStyles.statBox}>
+            <Text style={pdfStyles.statValue}>{result.rank || 'N/A'}</Text>
+            <Text style={pdfStyles.statLabel}>Rank</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Status */}
+      <View style={pdfStyles.statusRow}>
+        <View>
+          {result.cheating ? (
+            <Text style={[pdfStyles.statusBadge, pdfStyles.statusCheating]}>
+              ⚠️ Cheating Detected
+            </Text>
+          ) : result.percentage >= 40 ? (
+            <Text style={[pdfStyles.statusBadge, pdfStyles.statusPass]}>
+              ✅ Pass
+            </Text>
+          ) : (
+            <Text style={[pdfStyles.statusBadge, pdfStyles.statusFail]}>
+              ❌ Fail
+            </Text>
+          )}
+        </View>
+        <Text style={{ fontSize: 12, color: '#6b7280' }}>
+          {result.score} / {result.examTotalMarks} marks
+        </Text>
+      </View>
+
+      {/* Footer */}
+      <View style={pdfStyles.footer}>
+        <Text style={pdfStyles.footerText}>
+          This is a computer-generated document. No signature is required.
+        </Text>
+      </View>
+
+      {/* Watermark */}
+      <Text style={pdfStyles.watermark}>OFFICIAL</Text>
+    </Page>
+  </Document>
+);
+
 export function ResultSearchForm() {
   const [rollNumber, setRollNumber] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ResultData | null>(null);
   const [error, setError] = useState("");
-  const [downloading, setDownloading] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +311,6 @@ export function ResultSearchForm() {
       const data = await searchStudentResult(formData);
       
       if (data.success && data.result) {
-        // Transform the result to ensure no null values
         const transformedResult: ResultData = {
           id: data.result.id,
           rollNumber: data.result.rollNumber || "N/A",
@@ -66,209 +335,237 @@ export function ResultSearchForm() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!resultRef.current) return;
-    
-    setDownloading(true);
-    try {
-      // Dynamically import html2canvas and jspdf
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      
-      const element = resultRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        logging: false,
-        useCORS: true,
-      });
-      
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-      
-      const imgWidth = 190;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const xPosition = (pdf.internal.pageSize.getWidth() - imgWidth) / 2;
-      let yPosition = 10;
-      
-      if (imgHeight <= pageHeight - 20) {
-        yPosition = (pageHeight - imgHeight) / 2;
-      }
-      
-      pdf.addImage(imgData, "PNG", xPosition, yPosition, imgWidth, imgHeight);
-      pdf.save(`Result_${result?.rollNumber}_${result?.examName?.replace(/\s/g, "_")}.pdf`);
-    } catch (error) {
-      console.error("PDF generation error:", error);
-      alert("Failed to download result. Please try again or take a screenshot.");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   return (
     <div>
       {/* Search Card */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-8 mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Find Your Result</h2>
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Roll Number *
-            </label>
-            <input
-              type="text"
-              value={rollNumber}
-              onChange={(e) => setRollNumber(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
-              placeholder="Enter your roll number"
-              required
+      <Card className="border-0 shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50">
+        <CardHeader className="text-center border-b border-gray-100 dark:border-gray-800">
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+            Find Your Result
+          </CardTitle>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Enter your roll number and email to view your result
+          </p>
+        </CardHeader>
+        <CardContent className="p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto">
+            <div className="space-y-2">
+              <Label htmlFor="rollNumber" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <User className="h-4 w-4 text-blue-500" />
+                Roll Number *
+              </Label>
+              <Input
+                id="rollNumber"
+                type="text"
+                value={rollNumber}
+                onChange={(e) => setRollNumber(e.target.value)}
+                placeholder="Enter your roll number"
+                className="border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                required
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Mail className="h-4 w-4 text-purple-500" />
+                Email Address *
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="student@example.com"
+                className="border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                required
+                disabled={loading}
+              />
+            </div>
+            
+            <Button
+              type="submit"
               disabled={loading}
-            />
-          </div>
+              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-6 text-lg rounded-xl shadow-lg shadow-red-500/30 hover:shadow-red-500/40 transition-all duration-300"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-5 w-5 mr-2" />
+                  Check Result →
+                </>
+              )}
+            </Button>
+          </form>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address *
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
-              placeholder="student@example.com"
-              required
-              disabled={loading}
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
-          >
-            {loading ? "Searching..." : "Check Result →"}
-          </button>
-        </form>
-        
-        {error && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-center">
-            {error}
-          </div>
-        )}
-      </div>
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-center flex items-center justify-center gap-2">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              {error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
       {/* Result Card */}
       {result && (
-        <div ref={resultRef}>
-          <div className="bg-white border-2 border-red-200 rounded-2xl shadow-xl overflow-hidden mb-8">
+        <div ref={resultRef} className="mt-8">
+          <Card className="border-2 border-red-200 dark:border-red-800/50 shadow-2xl shadow-red-500/10 dark:shadow-red-900/20 overflow-hidden">
+            {/* Header */}
             <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 text-white">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-4">
                 <div>
-                  <h3 className="text-xl font-bold">Result Card</h3>
-                  <p className="text-sm text-red-100">Generated on {new Date().toLocaleDateString()}</p>
+                  <div className="flex items-center gap-2">
+                    <Award className="h-6 w-6" />
+                    <h3 className="text-xl font-bold">Result Card</h3>
+                  </div>
+                  <p className="text-sm text-red-100 mt-1">
+                    Generated on {new Date().toLocaleDateString()}
+                  </p>
                 </div>
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={downloading}
-                  className="px-4 py-2 bg-white text-red-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition disabled:opacity-50 flex items-center gap-2"
-                >
-                  {downloading ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Download PDF
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => window.print()}
+                    variant="secondary"
+                    className="bg-white/20 text-white hover:bg-white/30 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-gray-700"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print
+                  </Button>
+                  <PDFDownloadLink
+                    document={<ResultPDF result={result} />}
+                    fileName={`Result_${result.rollNumber}_${result.examName.replace(/\s/g, "_")}.pdf`}
+                  >
+                    {({ loading: pdfLoading }) => (
+                      <Button
+                        disabled={pdfLoading}
+                        variant="secondary"
+                        className="bg-white text-red-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-gray-700 font-semibold"
+                      >
+                        {pdfLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating PDF...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download PDF
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </PDFDownloadLink>
+                </div>
               </div>
             </div>
             
-            <div className="p-6">
+            <CardContent className="p-6">
+              {/* Student Info Grid */}
               <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <p className="text-sm text-gray-500">Student Name</p>
-                  <p className="text-lg font-semibold text-gray-900">{result.studentName}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <User className="h-3.5 w-3.5" />
+                    Student Name
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{result.studentName}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Roll Number</p>
-                  <p className="text-lg font-semibold text-gray-900">{result.rollNumber}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <User className="h-3.5 w-3.5" />
+                    Roll Number
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white font-mono">{result.rollNumber}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Email Address</p>
-                  <p className="text-lg font-semibold text-gray-900">{result.studentEmail}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Mail className="h-3.5 w-3.5" />
+                    Email Address
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{result.studentEmail}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Exam Name</p>
-                  <p className="text-lg font-semibold text-gray-900">{result.examName}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Award className="h-3.5 w-3.5" />
+                    Exam Name
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{result.examName}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Submitted On</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {new Date(result.submittedAt).toLocaleDateString()}
+                <div className="space-y-1 md:col-span-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Submitted On
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {new Date(result.submittedAt).toLocaleDateString()} at {new Date(result.submittedAt).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
               
-              <div className="border-t border-gray-200 pt-6 mb-6">
-                <div className="grid md:grid-cols-3 gap-6 text-center">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-3xl font-bold text-gray-900">{result.score}</p>
-                    <p className="text-sm text-gray-500 mt-1">Score</p>
+              {/* Stats Grid */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">{result.score}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-center gap-1">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Score
+                    </p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-3xl font-bold text-gray-900">{result.percentage.toFixed(1)}%</p>
-                    <p className="text-sm text-gray-500 mt-1">Percentage</p>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">{result.percentage.toFixed(1)}%</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-center gap-1">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Percentage
+                    </p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-3xl font-bold text-gray-900">{result.rank || "N/A"}</p>
-                    <p className="text-sm text-gray-500 mt-1">Rank</p>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">{result.rank || "N/A"}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      Rank
+                    </p>
                   </div>
                 </div>
               </div>
               
-              <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                <div>
+              {/* Status */}
+              <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700 flex-wrap gap-3">
+                <div className="flex items-center gap-2">
                   {result.cheating ? (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+                    <Badge variant="destructive" className="px-3 py-1.5 text-sm">
+                      <AlertCircle className="h-4 w-4 mr-1.5" />
                       ⚠️ Cheating Detected
-                    </span>
+                    </Badge>
                   ) : result.percentage >= 40 ? (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                      ✅ Pass
-                    </span>
+                    <Badge className="px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle className="h-4 w-4 mr-1.5" />
+                      Pass
+                    </Badge>
                   ) : (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
-                      ❌ Fail
-                    </span>
+                    <Badge variant="destructive" className="px-3 py-1.5 text-sm">
+                      <XCircle className="h-4 w-4 mr-1.5" />
+                      Fail
+                    </Badge>
                   )}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   {result.score} / {result.examTotalMarks} marks
                 </div>
               </div>
-            </div>
+            </CardContent>
             
-            {/* Watermark for authenticity */}
-            <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-              <p className="text-xs text-gray-400 text-center">
+            {/* Footer */}
+            <div className="bg-gray-50 dark:bg-gray-800/30 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
                 This is a computer-generated document. No signature is required.
               </p>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

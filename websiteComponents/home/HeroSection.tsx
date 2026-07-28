@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
-import { Eye, Calendar, Building2, Search, ChevronLeft, ChevronRight, Lock, AlertCircle, Bell } from "lucide-react";
+import { format, isAfter, isBefore, isToday, parseISO, addDays, subDays } from "date-fns";
+import { Eye, Calendar, Building2, Search, ChevronLeft, ChevronRight, Lock, AlertCircle, FileText, Clock, Users } from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Exam = {
   id: number;
@@ -24,7 +25,10 @@ type Exam = {
   isClosed?: boolean | null;
   resultAnnounced?: boolean | null;
   description?: string | null;
-  companyName?: string | null;  // ADD THIS - companyName property
+  companyName?: string | null;
+  durationMinutes?: number | null;
+  totalMarks?: number | null;
+  isPublic?: boolean | null;
 };
 
 interface HeroSectionProps {
@@ -39,6 +43,29 @@ export function HeroSection({ allExams }: HeroSectionProps) {
   const [filterStatus, setFilterStatus] = useState<"all" | "live" | "upcoming" | "closed">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Helper function to get the display date (one day before actual date)
+  const getDisplayDate = (examDate: Date | null): Date | null => {
+    if (!examDate) return null;
+    try {
+      const date = new Date(examDate);
+      // Subtract one day
+      return subDays(date, 1);
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Helper function to check if exam is upcoming (using actual date)
+  const isExamUpcoming = (exam: Exam) => {
+    if (!exam.examDate) return false;
+    const examDate = new Date(exam.examDate);
+    const today = new Date();
+    // Reset time to compare dates only
+    today.setHours(0, 0, 0, 0);
+    examDate.setHours(0, 0, 0, 0);
+    return isAfter(examDate, today) || isToday(examDate);
+  };
+
   // Filter exams based on search and status
   const filteredExams = useMemo(() => {
     return allExams.filter((exam) => {
@@ -49,8 +76,7 @@ export function HeroSection({ allExams }: HeroSectionProps) {
         return matchesSearch && exam.isLive === true && exam.isClosed === false;
       }
       if (filterStatus === "upcoming") {
-        return matchesSearch && exam.isLive === false && exam.isClosed === false && 
-               exam.examDate && new Date(exam.examDate) > new Date();
+        return matchesSearch && exam.isLive === false && exam.isClosed === false && isExamUpcoming(exam);
       }
       if (filterStatus === "closed") {
         return matchesSearch && exam.isClosed === true;
@@ -80,7 +106,8 @@ export function HeroSection({ allExams }: HeroSectionProps) {
   const getExamStatus = (exam: Exam) => {
     if (exam.isClosed) return { label: "Closed", variant: "destructive" as const, icon: Lock };
     if (exam.isLive) return { label: "Live Now", variant: "default" as const, icon: Eye };
-    return { label: "Upcoming", variant: "secondary" as const, icon: Calendar };
+    if (isExamUpcoming(exam)) return { label: "Upcoming", variant: "secondary" as const, icon: Calendar };
+    return { label: "Past", variant: "outline" as const, icon: Calendar };
   };
 
   const getActionButton = (exam: Exam) => {
@@ -89,7 +116,8 @@ export function HeroSection({ allExams }: HeroSectionProps) {
         text: "Exam Closed",
         disabled: true,
         variant: "secondary" as const,
-        icon: Lock
+        icon: Lock,
+        href: "#"
       };
     }
     if (exam.isLive) {
@@ -97,15 +125,51 @@ export function HeroSection({ allExams }: HeroSectionProps) {
         text: "Join Exam Now",
         disabled: false,
         variant: "default" as const,
-        icon: Eye
+        icon: Eye,
+        href: `/exam/${exam.id}/join`
       };
     }
+    // All upcoming exams - show register now button
     return {
-      text: "Get Notified",
+      text: "Register Now",
       disabled: false,
-      variant: "outline" as const,
-      icon: Bell
+      variant: "default" as const,
+      icon: FileText,
+      href: "/exam-registration"
     };
+  };
+
+  // Format date function with proper handling - shows one day before
+  const formatExamDate = (date: Date | null) => {
+    if (!date) return "Date TBA";
+    try {
+      const displayDate = getDisplayDate(date);
+      if (!displayDate) return "Date TBA";
+      return format(displayDate, "MMM dd, yyyy");
+    } catch (error) {
+      return "Date TBA";
+    }
+  };
+
+  const formatFullDate = (date: Date | null) => {
+    if (!date) return "Date to be announced";
+    try {
+      const displayDate = getDisplayDate(date);
+      if (!displayDate) return "Date to be announced";
+      return format(displayDate, "PPP");
+    } catch (error) {
+      return "Date to be announced";
+    }
+  };
+
+  // Get actual date for display (if needed)
+  const getActualDate = (date: Date | null) => {
+    if (!date) return null;
+    try {
+      return format(new Date(date), "PPP");
+    } catch (error) {
+      return null;
+    }
   };
 
   return (
@@ -116,9 +180,6 @@ export function HeroSection({ allExams }: HeroSectionProps) {
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600 to-red-700 p-8 text-white">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10">
-              {/* <span className="text-sm font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full inline-block mb-4">
-                Trusted by 1000+ companies
-              </span> */}
               <h1 className="text-4xl font-bold mb-4">
                 Crack Every Exam.
                 <br />
@@ -192,64 +253,72 @@ export function HeroSection({ allExams }: HeroSectionProps) {
               </div>
             </div>
             
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-y-auto max-h-[500px]">
-              {paginatedExams.length > 0 ? (
-                paginatedExams.map((exam) => {
-                  const status = getExamStatus(exam);
-                  const StatusIcon = status.icon;
-                  
-                  return (
-                    <div 
-                      key={exam.id} 
-                      className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group ${
-                        exam.isClosed ? 'opacity-75' : ''
-                      }`}
-                      onClick={() => setSelectedExam(exam)}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-1">
-                          {exam.name || "Untitled Exam"}
-                        </h3>
-                        <Badge variant={status.variant}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {status.label}
-                        </Badge>
+            <ScrollArea className="flex-1 max-h-[500px]">
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {paginatedExams.length > 0 ? (
+                  paginatedExams.map((exam) => {
+                    const status = getExamStatus(exam);
+                    const StatusIcon = status.icon;
+                    
+                    return (
+                      <div 
+                        key={exam.id} 
+                        className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group ${
+                          exam.isClosed ? 'opacity-75' : ''
+                        }`}
+                        onClick={() => setSelectedExam(exam)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-1">
+                            {exam.name || "Untitled Exam"}
+                          </h3>
+                          <Badge variant={status.variant}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {status.label}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                          <span className="flex items-center gap-1 truncate max-w-[200px]">
+                            <Building2 className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{exam.companyName || "Various Companies"}</span>
+                          </span>
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Calendar className="h-3 w-3" />
+                            {formatExamDate(exam.examDate)}
+                          </span>
+                        </div>
+                        {exam.isClosed && (
+                          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Registration closed for this exam
+                          </p>
+                        )}
+                        {!exam.isClosed && exam.isPublic && isExamUpcoming(exam) && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            Open for registration
+                          </p>
+                        )}
                       </div>
-                      <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-                        <span className="flex items-center gap-1 truncate max-w-[200px]">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{exam.companyName || "Various Companies"}</span>
-                        </span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          <Calendar className="h-3 w-3" />
-                          {exam.examDate ? format(new Date(exam.examDate), "MMM dd, yyyy") : "Date TBA"}
-                        </span>
-                      </div>
-                      {exam.isClosed && (
-                        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                          <Lock className="h-3 w-3" />
-                          Registration closed for this exam
-                        </p>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="font-medium">{searchTerm ? "No exams match your search" : "No exams available at the moment"}</p>
-                  {searchTerm && (
-                    <Button
-                      onClick={() => setSearchTerm("")}
-                      variant="link"
-                      className="mt-2 text-red-600"
-                    >
-                      Clear search
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+                    );
+                  })
+                ) : (
+                  <div className="px-6 py-12 text-center text-gray-500">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                    <p className="font-medium">{searchTerm ? "No exams match your search" : "No exams available at the moment"}</p>
+                    {searchTerm && (
+                      <Button
+                        onClick={() => setSearchTerm("")}
+                        variant="link"
+                        className="mt-2 text-red-600"
+                      >
+                        Clear search
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
             
             {/* Pagination */}
             {totalPages > 1 && (
@@ -313,54 +382,136 @@ export function HeroSection({ allExams }: HeroSectionProps) {
 
       {/* Exam Details Dialog */}
       <Dialog open={!!selectedExam} onOpenChange={() => setSelectedExam(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">{selectedExam?.name || "Exam Details"}</DialogTitle>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white break-words flex-1">
+                {selectedExam?.name || "Exam Details"}
+              </DialogTitle>
+              {selectedExam && (
+                <Badge variant={selectedExam.isClosed ? "destructive" : selectedExam.isLive ? "default" : "secondary"} className="shrink-0">
+                  {selectedExam.isClosed ? (
+                    <><Lock className="h-3 w-3 mr-1" /> Closed</>
+                  ) : selectedExam.isLive ? (
+                    <><Eye className="h-3 w-3 mr-1" /> Live</>
+                  ) : (
+                    <><Calendar className="h-3 w-3 mr-1" /> Upcoming</>
+                  )}
+                </Badge>
+              )}
+            </div>
             {selectedExam?.isClosed && (
-              <DialogDescription className="text-red-600 dark:text-red-400 flex items-center gap-2 mt-2">
+              <DialogDescription className="text-red-600 dark:text-red-400 flex items-center gap-2">
                 <Lock className="h-4 w-4" />
                 This exam is currently closed for registration
               </DialogDescription>
             )}
+            {!selectedExam?.isClosed && selectedExam?.isPublic && (
+              <DialogDescription className="text-green-600 dark:text-green-400 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Open for registration - Register now to participate!
+              </DialogDescription>
+            )}
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Building2 className="h-4 w-4 shrink-0" />
-              <span className="break-words">{selectedExam?.companyName || "Various Companies"}</span>
+          
+          <div className="space-y-6 py-2">
+            {/* Company & Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <Building2 className="h-4 w-4 text-gray-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Company</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                    {selectedExam?.companyName || "Various Companies"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Exam Date</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {formatFullDate(selectedExam?.examDate || null)}
+                  </p>
+                  {/* Show actual date in small text */}
+                  {selectedExam?.examDate && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Closed: {getActualDate(selectedExam.examDate)}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span>{selectedExam?.examDate ? format(new Date(selectedExam.examDate), "PPP") : "Date to be announced"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              {selectedExam?.isClosed ? (
-                <>
-                  <Lock className="h-4 w-4" />
-                  <span>Exam is closed - No longer accepting submissions</span>
-                </>
-              ) : selectedExam?.isLive ? (
-                <>
-                  <Eye className="h-4 w-4 text-green-600" />
-                  <span>Live now - Open for participation</span>
-                </>
-              ) : (
-                <>
-                  <Calendar className="h-4 w-4 text-yellow-600" />
-                  <span>Upcoming - Register to participate</span>
-                </>
+
+            {/* Additional Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {selectedExam?.durationMinutes && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <Clock className="h-4 w-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Duration</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {selectedExam.durationMinutes} minutes
+                    </p>
+                  </div>
+                </div>
+              )}
+              {selectedExam?.totalMarks && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <Users className="h-4 w-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Total Marks</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {selectedExam.totalMarks}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
+
+            {/* Description */}
             {selectedExam?.description && (
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Description</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   {selectedExam.description}
                 </p>
               </div>
             )}
+
+            {/* Status Message */}
+            <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 text-sm">
+                {selectedExam?.isClosed ? (
+                  <>
+                    <Lock className="h-4 w-4 text-red-500" />
+                    <span className="text-red-600 dark:text-red-400">
+                      Exam is closed - No longer accepting submissions
+                    </span>
+                  </>
+                ) : selectedExam?.isLive ? (
+                  <>
+                    <Eye className="h-4 w-4 text-green-500" />
+                    <span className="text-green-600 dark:text-green-400">
+                      Live now - Open for participation
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <span className="text-blue-600 dark:text-blue-400">
+                      Registration open - Click the button below to register
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Action Button */}
             {selectedExam && (() => {
               const action = getActionButton(selectedExam);
               return (
-                <Link href={!selectedExam.isClosed && selectedExam.isLive ? "/join" : "#GetNotified"} className="w-full">
+                <Link href={action.href} className="w-full block">
                   <Button 
                     className="w-full"
                     variant={action.variant}
