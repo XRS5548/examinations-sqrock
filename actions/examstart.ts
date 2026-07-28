@@ -1,8 +1,8 @@
-// actions/exam.ts (complete file with all imports and functions)
+// actions/examstart.ts (complete file with all imports and functions)
 "use server";
 
 import { db } from "@/db";
-import { examRegistrations, students, studentAnswers, questions, exams, cheatingLogs, examAttemptLogs } from "@/db/schema";
+import { examRegistrations, students, studentAnswers, questions, exams, cheatingLogs, examAttemptLogs, options } from "@/db/schema";
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -12,6 +12,7 @@ const verifySchema = z.object({
   rollNumber: z.string().min(1),
   email: z.string().email("Invalid email address"),
 });
+
 
 export async function verifyStudent(formData: FormData) {
   try {
@@ -40,7 +41,7 @@ export async function verifyStudent(formData: FormData) {
       return { success: false, error: "Exam not associated with this registration" };
     }
 
-    // Check if exam is live
+    // Check if exam exists
     const examList = await db
       .select()
       .from(exams)
@@ -53,13 +54,83 @@ export async function verifyStudent(formData: FormData) {
 
     const exam = examList[0];
 
-    if (!exam.isLive) {
-      return { success: false, error: "This exam is not currently live. Please check back later." };
+    // 👇 OPTIONAL: Skip isLive check for testing (comment out for production)
+    // if (!exam.isLive) {
+    //   return { success: false, error: "This exam is not currently live. Please check back later." };
+    // }
+
+    // 👇 OPTIONAL: Skip date checks for testing (comment out for production)
+    // For production, uncomment these checks
+    const now = new Date();
+    const examDate = exam.examDate ? new Date(exam.examDate) : null;
+    const examCloseDate = exam.examCloseDate ? new Date(exam.examCloseDate) : null;
+
+    // 👇 COMMENT OUT OR REMOVE THESE CHECKS FOR TESTING
+    /*
+    // Check if exam has started
+    if (examDate && examDate > now) {
+      const timeUntilStart = Math.floor((examDate.getTime() - now.getTime()) / (1000 * 60));
+      const hours = Math.floor(timeUntilStart / 60);
+      const minutes = timeUntilStart % 60;
+      
+      let timeMessage = "";
+      if (hours > 0) {
+        timeMessage = `${hours} hour${hours > 1 ? 's' : ''}`;
+        if (minutes > 0) {
+          timeMessage += ` and ${minutes} minute${minutes > 1 ? 's' : ''}`;
+        }
+      } else {
+        timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''}`;
+      }
+      
+      return { 
+        success: false, 
+        error: `This exam hasn't started yet. It will begin in ${timeMessage}.` 
+      };
     }
 
-    // Check if exam date has passed
-    if (exam.examDate && new Date(exam.examDate) < new Date()) {
-      return { success: false, error: "This exam date has passed. Cannot start the exam." };
+    // Check if exam close date has passed
+    if (examCloseDate && examCloseDate < now) {
+      return { 
+        success: false, 
+        error: "This exam submission window has closed. You can no longer take this exam." 
+      };
+    }
+
+    // If no close date is set, check if exam date + duration has passed
+    if (!examCloseDate && examDate && exam.durationMinutes) {
+      const examEndTime = new Date(examDate.getTime() + (exam.durationMinutes * 60 * 1000));
+      if (examEndTime < now) {
+        return { 
+          success: false, 
+          error: "This exam duration has expired. You can no longer take this exam." 
+        };
+      }
+    }
+    */
+
+    // 👇 OPTIONAL: Add bypass for development environment
+    // This allows access if NODE_ENV is development, regardless of dates
+    const isDev = process.env.NODE_ENV === "development";
+    
+    if (!isDev) {
+      // Production checks - uncomment for production
+      /*
+      if (!exam.isLive) {
+        return { success: false, error: "This exam is not currently live. Please check back later." };
+      }
+      
+      if (examDate && examDate > now) {
+        // ... date not started check
+      }
+      
+      if (examCloseDate && examCloseDate < now) {
+        return { 
+          success: false, 
+          error: "This exam submission window has closed. You can no longer take this exam." 
+        };
+      }
+      */
     }
 
     // Check if already completed
@@ -112,6 +183,9 @@ export async function verifyStudent(formData: FormData) {
     return { success: false, error: "Failed to verify student" };
   }
 }
+
+// actions/examstart.ts (updated submitExam function with auto-evaluation)
+
 export async function submitExam(formData: FormData) {
   try {
     const registrationId = parseInt(formData.get("registrationId") as string);
@@ -139,56 +213,115 @@ export async function submitExam(formData: FormData) {
       return { success: false, error: "Exam already submitted" };
     }
 
-    // Save each answer
+    // Get all questions for this exam
+    const examQuestions = await db
+      .select()
+      .from(questions)
+      .where(eq(questions.examId, registration.examId!));
+
+    // Get all options for these questions (to check correct answers)
+    const questionIds = examQuestions.map(q => q.id);
+    let allOptions: any[] = [];
+    if (questionIds.length > 0) {
+      allOptions = await db
+        .select()
+        .from(options)
+        .where(inArray(options.questionId, questionIds));
+    }
+
+    // Create a map of questionId -> correct option IDs
+    const correctOptionsMap: Record<number, number[]> = {};
+    allOptions.forEach(opt => {
+      if (opt.isCorrect) {
+        if (!correctOptionsMap[opt.questionId]) {
+          correctOptionsMap[opt.questionId] = [];
+        }
+        correctOptionsMap[opt.questionId].push(opt.id);
+      }
+    });
+
+    // Track total marks
+    let totalMarks = 0;
+
+    // Save each answer and evaluate MCQs
     for (const [questionId, answer] of Object.entries(answers)) {
       const qId = parseInt(questionId);
       
       if (isNaN(qId)) continue;
 
-      // Get question to check type
-      const questionList = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.id, qId))
-        .limit(1);
+      // Find the question
+      const question = examQuestions.find(q => q.id === qId);
+      if (!question) continue;
 
-      if (questionList.length === 0) continue;
-
-      const question = questionList[0];
+      let isCorrect = null;
+      let marksAwarded = 0;
 
       if (question.questionType === "mcq") {
-        // For MCQ, store selected option ID
+        // For MCQ, check if the selected option is correct
         const selectedOptionId = parseInt(answer);
+        
+        // Check if selected option is in the correct options list
+        const correctOptions = correctOptionsMap[qId] || [];
+        isCorrect = correctOptions.includes(selectedOptionId);
+        
+        // Award marks if correct
+        if (isCorrect) {
+          marksAwarded = question.marks || 1;
+          totalMarks += marksAwarded;
+        }
+
+        // Save the answer
         await db.insert(studentAnswers).values({
           registrationId: registrationId,
           questionId: qId,
           selectedOptionId: isNaN(selectedOptionId) ? null : selectedOptionId,
           answerText: null,
+          isCorrect: isCorrect,
+          marksAwarded: marksAwarded,
         });
       } else {
-        // For subjective, store text answer
+        // For subjective, store text answer (not auto-evaluated)
         await db.insert(studentAnswers).values({
           registrationId: registrationId,
           questionId: qId,
           selectedOptionId: null,
           answerText: answer,
+          isCorrect: null, // Will be evaluated manually
+          marksAwarded: 0, // Will be awarded manually
         });
       }
     }
 
-    // Update registration status to completed
+    // Update registration status to completed and set score
     await db
       .update(examRegistrations)
       .set({
         status: "completed",
         submittedAt: new Date(),
+        score: totalMarks, // Auto-calculated score for MCQs
       })
       .where(eq(examRegistrations.id, registrationId));
+
+    // Log the submission
+    await db.insert(examAttemptLogs).values({
+      registrationId: registrationId,
+      action: "exam_submitted",
+      data: {
+        totalMarks: totalMarks,
+        questionsAnswered: Object.keys(answers).length,
+        timestamp: new Date().toISOString(),
+      },
+      createdAt: new Date(),
+    });
 
     revalidatePath(`/start`);
     revalidatePath(`/dashboard/exams/results/${registration.examId}`);
 
-    return { success: true };
+    return { 
+      success: true, 
+      score: totalMarks,
+      message: `Exam submitted successfully! You scored ${totalMarks} marks.`
+    };
   } catch (error) {
     console.error("Submit exam error:", error);
     return { success: false, error: "Failed to submit exam" };

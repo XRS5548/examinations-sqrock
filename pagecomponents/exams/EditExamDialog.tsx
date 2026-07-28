@@ -19,6 +19,7 @@ const examSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
+  examCloseDate: z.string().optional(), // 👈 ADD THIS
   durationMinutes: z.string().optional(),
   totalMarks: z.string().optional(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -33,6 +34,7 @@ interface EditExamDialogProps {
     name: string | null;
     description: string | null;
     examDate: Date | null;
+    examCloseDate: Date | null; // 👈 ADD THIS
     durationMinutes: number | null;
     totalMarks: number | null;
     syllabusPdf: string | null;
@@ -62,6 +64,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
         name: exam.name || "",
         description: exam.description || "",
         examDate: exam.examDate ? new Date(exam.examDate).toISOString().slice(0, 16) : "",
+        examCloseDate: exam.examCloseDate ? new Date(exam.examCloseDate).toISOString().slice(0, 16) : "", // 👈 ADD THIS
         durationMinutes: exam.durationMinutes?.toString() || "",
         totalMarks: exam.totalMarks?.toString() || "",
         syllabusPdf: exam.syllabusPdf || "",
@@ -79,6 +82,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
       formData.append("name", data.name);
       if (data.description) formData.append("description", data.description);
       if (data.examDate) formData.append("examDate", data.examDate);
+      if (data.examCloseDate) formData.append("examCloseDate", data.examCloseDate); // 👈 ADD THIS
       if (data.durationMinutes) formData.append("durationMinutes", data.durationMinutes);
       if (data.totalMarks) formData.append("totalMarks", data.totalMarks);
       if (data.syllabusPdf) formData.append("syllabusPdf", data.syllabusPdf);
@@ -139,7 +143,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="examDate">Exam Date</Label>
+              <Label htmlFor="examDate">Exam Date (Start)</Label>
               <Input
                 id="examDate"
                 type="datetime-local"
@@ -147,6 +151,20 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="examCloseDate">Exam Close Date (End)</Label> {/* 👈 ADD THIS */}
+              <Input
+                id="examCloseDate"
+                type="datetime-local"
+                {...register("examCloseDate")}
+              />
+              <p className="text-xs text-muted-foreground">
+                When the exam submission window closes
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="durationMinutes">Duration (minutes)</Label>
               <Input
@@ -156,9 +174,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
                 {...register("durationMinutes")}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="totalMarks">Total Marks</Label>
               <Input
@@ -168,19 +184,19 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
                 {...register("totalMarks")}
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="syllabusPdf">Syllabus PDF URL</Label>
-              <Input
-                id="syllabusPdf"
-                type="url"
-                placeholder="https://..."
-                {...register("syllabusPdf")}
-              />
-              {errors.syllabusPdf && (
-                <p className="text-sm text-red-500">{errors.syllabusPdf.message}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="syllabusPdf">Syllabus PDF URL</Label>
+            <Input
+              id="syllabusPdf"
+              type="url"
+              placeholder="https://..."
+              {...register("syllabusPdf")}
+            />
+            {errors.syllabusPdf && (
+              <p className="text-sm text-red-500">{errors.syllabusPdf.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

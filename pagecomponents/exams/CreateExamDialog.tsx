@@ -18,6 +18,7 @@ const examSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
+  examCloseDate: z.string().optional(), // 👈 ADD THIS
   durationMinutes: z.string().optional(),
   totalMarks: z.string().optional(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -29,7 +30,6 @@ type FormData = z.infer<typeof examSchema>;
 export function CreateExamDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
 
   const {
     register,
@@ -42,6 +42,7 @@ export function CreateExamDialog() {
       name: "",
       description: "",
       examDate: "",
+      examCloseDate: "", // 👈 ADD THIS
       durationMinutes: "",
       totalMarks: "",
       syllabusPdf: "",
@@ -56,6 +57,7 @@ export function CreateExamDialog() {
       formData.append("name", data.name);
       if (data.description) formData.append("description", data.description);
       if (data.examDate) formData.append("examDate", data.examDate);
+      if (data.examCloseDate) formData.append("examCloseDate", data.examCloseDate); // 👈 ADD THIS
       if (data.durationMinutes) formData.append("durationMinutes", data.durationMinutes);
       if (data.totalMarks) formData.append("totalMarks", data.totalMarks);
       if (data.syllabusPdf) formData.append("syllabusPdf", data.syllabusPdf);
@@ -116,7 +118,7 @@ export function CreateExamDialog() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="examDate">Exam Date</Label>
+              <Label htmlFor="examDate">Exam Date (Start)</Label>
               <Input
                 id="examDate"
                 type="datetime-local"
@@ -124,6 +126,20 @@ export function CreateExamDialog() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="examCloseDate">Exam Close Date (End)</Label> {/* 👈 ADD THIS */}
+              <Input
+                id="examCloseDate"
+                type="datetime-local"
+                {...register("examCloseDate")}
+              />
+              <p className="text-xs text-muted-foreground">
+                When the exam submission window closes
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="durationMinutes">Duration (minutes)</Label>
               <Input
@@ -133,9 +149,7 @@ export function CreateExamDialog() {
                 {...register("durationMinutes")}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="totalMarks">Total Marks</Label>
               <Input
@@ -145,19 +159,19 @@ export function CreateExamDialog() {
                 {...register("totalMarks")}
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="syllabusPdf">Syllabus PDF URL</Label>
-              <Input
-                id="syllabusPdf"
-                type="url"
-                placeholder="https://..."
-                {...register("syllabusPdf")}
-              />
-              {errors.syllabusPdf && (
-                <p className="text-sm text-red-500">{errors.syllabusPdf.message}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="syllabusPdf">Syllabus PDF URL</Label>
+            <Input
+              id="syllabusPdf"
+              type="url"
+              placeholder="https://..."
+              {...register("syllabusPdf")}
+            />
+            {errors.syllabusPdf && (
+              <p className="text-sm text-red-500">{errors.syllabusPdf.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

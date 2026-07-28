@@ -47,7 +47,7 @@ export default async function StartPage({ searchParams }: PageProps) {
 
   const exam = examList[0];
 
-  // Check if exam is live
+  // ✅ Check if exam is live
   if (!exam.isLive) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
@@ -72,7 +72,7 @@ export default async function StartPage({ searchParams }: PageProps) {
     );
   }
 
-  // Check if registration exists and not completed
+  // ✅ Check if registration exists
   const registrationList = await db.select()
     .from(examRegistrations)
     .where(eq(examRegistrations.id, registrationId))
@@ -84,6 +84,7 @@ export default async function StartPage({ searchParams }: PageProps) {
 
   const registration = registrationList[0];
 
+  // ✅ Check if already completed
   if (registration.status === "completed") {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
@@ -108,19 +109,41 @@ export default async function StartPage({ searchParams }: PageProps) {
     );
   }
 
-  // Check if exam date has passed
-  if (exam.examDate && new Date(exam.examDate) < new Date()) {
+  // ✅ Check if exam date and close date conditions are met
+  const now = new Date();
+  const examDate = exam.examDate ? new Date(exam.examDate) : null;
+  const examCloseDate = exam.examCloseDate ? new Date(exam.examCloseDate) : null;
+
+  // Check if exam has started
+  if (examDate && examDate > now) {
+    const timeUntilStart = Math.floor((examDate.getTime() - now.getTime()) / (1000 * 60));
+    const hours = Math.floor(timeUntilStart / 60);
+    const minutes = timeUntilStart % 60;
+    
+    let timeMessage = "";
+    if (hours > 0) {
+      timeMessage = `${hours} hour${hours > 1 ? 's' : ''}`;
+      if (minutes > 0) {
+        timeMessage += ` and ${minutes} minute${minutes > 1 ? 's' : ''}`;
+      }
+    } else {
+      timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+    
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-zinc-950 rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-3">Exam Date Has Passed</h1>
-          <p className="text-gray-600 dark:text-zinc-400 mb-6">
-            This exam was scheduled for {new Date(exam.examDate).toLocaleDateString()} and is no longer available.
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-3">Exam Not Started Yet</h1>
+          <p className="text-gray-600 dark:text-zinc-400 mb-2">
+            This exam will begin in <span className="font-semibold text-blue-600 dark:text-blue-400">{timeMessage}</span>
+          </p>
+          <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
+            Scheduled for {examDate.toLocaleString()}
           </p>
           <Link
             href="/"
@@ -131,6 +154,96 @@ export default async function StartPage({ searchParams }: PageProps) {
         </div>
       </div>
     );
+  }
+
+  // Check if exam close date has passed
+  if (examCloseDate && examCloseDate < now) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-950 rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-3">Exam Submission Closed</h1>
+          <p className="text-gray-600 dark:text-zinc-400 mb-2">
+            This exam submission window has closed.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
+            Closed on {examCloseDate.toLocaleString()}
+          </p>
+          <Link
+            href="/"
+            className="inline-block px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+          >
+            Go to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // If no close date is set, check if exam date + duration has passed
+  if (!examCloseDate && examDate && exam.durationMinutes) {
+    const examEndTime = new Date(examDate.getTime() + (exam.durationMinutes * 60 * 1000));
+    if (examEndTime < now) {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white dark:bg-zinc-950 rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-3">Exam Duration Expired</h1>
+            <p className="text-gray-600 dark:text-zinc-400 mb-6">
+              This exam duration has expired. You can no longer take this exam.
+            </p>
+            <Link
+              href="/"
+              className="inline-block px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+            >
+              Go to Home
+            </Link>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // ✅ Check if student is already in progress (prevent multiple tabs)
+  if (registration.status === "in_progress") {
+    // Check if the exam was started more than duration minutes ago
+    if (registration.startedAt && exam.durationMinutes) {
+      const startedAt = new Date(registration.startedAt);
+      const elapsedMinutes = (now.getTime() - startedAt.getTime()) / (1000 * 60);
+      
+      if (elapsedMinutes > exam.durationMinutes) {
+        // Auto-submit if time is up
+        return (
+          <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-white dark:bg-zinc-950 rounded-2xl shadow-xl p-8 text-center">
+              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-3">Time's Up!</h1>
+              <p className="text-gray-600 dark:text-zinc-400 mb-6">
+                Your exam time has expired. The exam has been auto-submitted.
+              </p>
+              <Link
+                href="/"
+                className="inline-block px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+              >
+                Go to Home
+              </Link>
+            </div>
+          </div>
+        );
+      }
+    }
   }
 
   // Fetch all questions for this exam

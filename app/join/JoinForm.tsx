@@ -1,8 +1,8 @@
 // components/exam/JoinForm.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation"; // 👈 ADD useSearchParams
 import { verifyStudent } from "@/actions/examstart";
 import {
   Dialog,
@@ -96,8 +96,14 @@ const guidelines: Record<string, GuidelinesContent> = {
 
 export function JoinForm() {
   const router = useRouter();
-  const [rollNumber, setRollNumber] = useState("");
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams(); // 👈 GET SEARCH PARAMS
+  
+  // 👈 READ QUERY PARAMETERS
+  const emailParam = searchParams.get("email");
+  const rollnoParam = searchParams.get("rollno");
+  
+  const [rollNumber, setRollNumber] = useState(rollnoParam || ""); // 👈 SET FROM QUERY
+  const [email, setEmail] = useState(emailParam || ""); // 👈 SET FROM QUERY
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
@@ -106,6 +112,21 @@ export function JoinForm() {
   const [examData, setExamData] = useState<{ examId: number; registrationId: number } | null>(null);
 
   const content = guidelines[language];
+
+  // 👈 OPTIONAL: Auto-submit if both fields are present
+  useEffect(() => {
+    if (emailParam && rollnoParam) {
+      // Auto-submit the form after a short delay to show the user the fields are filled
+      const timer = setTimeout(() => {
+        const form = document.querySelector("form");
+        if (form) {
+          form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [emailParam, rollnoParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,7 +171,18 @@ export function JoinForm() {
             <span className="text-white font-bold text-2xl">EM</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Join Your Exam</h1>
-          <p className="text-gray-500 dark:text-zinc-400 mt-2">Enter your credentials to start the exam</p>
+          <p className="text-gray-500 dark:text-zinc-400 mt-2">
+            {emailParam && rollnoParam 
+              ? "Your credentials have been pre-filled. Click continue to start."
+              : "Enter your credentials to start the exam"
+            }
+          </p>
+          {(emailParam || rollnoParam) && (
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Auto-filled from registration
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -163,11 +195,19 @@ export function JoinForm() {
               id="rollNumber"
               value={rollNumber}
               onChange={(e) => setRollNumber(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 ${
+                rollnoParam ? 'border-green-500 dark:border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-gray-300 dark:border-zinc-700'
+              }`}
               placeholder="e.g., SQR001"
               required
               disabled={loading}
+              readOnly={!!rollnoParam} // 👈 Make read-only if from query
             />
+            {rollnoParam && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                ✓ Auto-filled from registration
+              </p>
+            )}
           </div>
 
           <div>
@@ -179,11 +219,19 @@ export function JoinForm() {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 ${
+                emailParam ? 'border-green-500 dark:border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-gray-300 dark:border-zinc-700'
+              }`}
               placeholder="student@example.com"
               required
               disabled={loading}
+              readOnly={!!emailParam} // 👈 Make read-only if from query
             />
+            {emailParam && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                ✓ Auto-filled from registration
+              </p>
+            )}
           </div>
 
           {error && (
@@ -197,8 +245,14 @@ export function JoinForm() {
             disabled={loading}
             className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Verifying..." : "Continue to Guidelines"}
+            {loading ? "Verifying..." : emailParam && rollnoParam ? "Continue to Guidelines" : "Continue to Guidelines"}
           </button>
+          
+          {(emailParam || rollnoParam) && (
+            <p className="text-xs text-center text-gray-500 dark:text-zinc-400">
+              Your credentials have been automatically filled from the registration link
+            </p>
+          )}
         </form>
       </div>
 

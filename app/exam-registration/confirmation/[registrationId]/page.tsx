@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // 👈 ADD useRouter
 import { format, subDays } from "date-fns";
 import { 
   Printer, 
@@ -16,7 +16,9 @@ import {
   Loader2,
   FileText,
   Download,
-  ExternalLink
+  ExternalLink,
+  ArrowRight, // 👈 ADD THIS
+  PlayCircle // 👈 ADD THIS
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +28,7 @@ import { getRegistrationDetails, type RegistrationDetails } from "@/actions/publ
 
 export default function ConfirmationPage() {
   const params = useParams();
+  const router = useRouter(); // 👈 ADD THIS
   const printRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<RegistrationDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +45,15 @@ export default function ConfirmationPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // 👈 ADD THIS FUNCTION
+  const handleAttendExam = () => {
+    if (details) {
+      const email = encodeURIComponent(details.studentEmail!);
+      const rollno = encodeURIComponent(details.rollNumber!);
+      router.push(`/join?email=${email}&rollno=${rollno}`);
+    }
   };
 
   // Helper function to get display date (one day before actual date)
@@ -109,16 +121,59 @@ export default function ConfirmationPage() {
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navbar />
       
-      {/* Print Button - hidden when printing */}
+      {/* Action Buttons - hidden when printing */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 print:hidden">
-        <Button onClick={handlePrint} variant="outline" className="mb-4">
-          <Printer className="h-4 w-4 mr-2" />
-          Print Registration
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          {/* 👈 ATTEND EXAM BUTTON - HIGHLIGHTED */}
+          <Button 
+            onClick={handleAttendExam} 
+            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg shadow-lg shadow-green-500/30 hover:shadow-green-600/40 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] border-0"
+          >
+            <PlayCircle className="h-5 w-5 mr-2" />
+            Attend Exam Now
+            <ArrowRight className="h-5 w-5 ml-2" />
+          </Button>
+          
+          <Button 
+            onClick={handlePrint} 
+            variant="outline" 
+            className="flex-1 sm:flex-none sm:w-auto"
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+        </div>
       </div>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <div ref={printRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+        {/* 👈 ADD A PROMINENT BANNER ABOVE THE CONFIRMATION CARD */}
+        <div className="mt-4 print:hidden">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-200 dark:border-green-800 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-500 rounded-full p-2 animate-pulse">
+                <PlayCircle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  Ready to start your exam?
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Click the button below to begin
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleAttendExam}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold px-6 py-5 rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-600/40 transition-all duration-300 transform hover:scale-105 active:scale-95 w-full sm:w-auto"
+            >
+              <PlayCircle className="h-5 w-5 mr-2" />
+              Start Now
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+
+        <div ref={printRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 mt-4">
           {/* Header */}
           <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white text-center print:bg-red-600">
             <CheckCircle className="h-12 w-12 mx-auto mb-2" />
@@ -284,6 +339,21 @@ export default function ConfirmationPage() {
             </div>
           </div>
         </div>
+
+        {/* 👈 BOTTOM ACTION BUTTON - STICKY ON MOBILE */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 print:hidden lg:hidden">
+          <Button 
+            onClick={handleAttendExam} 
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg shadow-lg shadow-green-500/30"
+          >
+            <PlayCircle className="h-5 w-5 mr-2" />
+            Attend Exam Now
+            <ArrowRight className="h-5 w-5 ml-2" />
+          </Button>
+        </div>
+
+        {/* Add padding at bottom for mobile to prevent button overlap */}
+        <div className="h-24 lg:h-0 print:hidden"></div>
       </main>
       <Footer />
     </div>

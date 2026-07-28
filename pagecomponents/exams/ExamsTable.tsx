@@ -43,6 +43,7 @@ export type Exam = {
   name: string | null;
   description: string | null;
   examDate: Date | null;
+  examCloseDate: Date | null;
   durationMinutes: number | null;
   totalMarks: number | null;
   isLive: boolean;
@@ -189,6 +190,8 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
             <TableRow>
               <TableHead>Exam Name</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Close Date</TableHead>
+
               <TableHead>Duration</TableHead>
               <TableHead>Total Marks</TableHead>
               <TableHead>Status</TableHead>
@@ -219,6 +222,11 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                 <TableCell suppressHydrationWarning>
                   {exam.examDate 
                     ? format(new Date(exam.examDate), "MMM dd, yyyy")
+                    : "Not set"}
+                </TableCell>
+                 <TableCell suppressHydrationWarning>
+                  {exam.examCloseDate 
+                    ? format(new Date(exam.examCloseDate), "MMM dd, yyyy")
                     : "Not set"}
                 </TableCell>
                 <TableCell suppressHydrationWarning>

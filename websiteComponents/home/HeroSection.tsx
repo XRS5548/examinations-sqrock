@@ -126,7 +126,7 @@ export function HeroSection({ allExams }: HeroSectionProps) {
         disabled: false,
         variant: "default" as const,
         icon: Eye,
-        href: `/exam/${exam.id}/join`
+        href: `/exam-registration`
       };
     }
     // All upcoming exams - show register now button

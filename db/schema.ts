@@ -96,6 +96,7 @@ export const exams = pgTable("exams", {
   coverImage: text("cover_image"),
   isClosed: boolean("is_closed").default(false),
   examDate: timestamp("exam_date"),
+  examCloseDate: timestamp("exam_close_date").defaultNow(), // 👈 NEW FIELD
   durationMinutes: integer("duration_minutes"),
   totalMarks: integer("total_marks"),
   createdAt: timestamp("created_at").defaultNow(),

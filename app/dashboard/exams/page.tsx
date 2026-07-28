@@ -46,6 +46,7 @@ export default async function ExamsPage() {
     syllabusPdf: exam.syllabusPdf,
     coverImage: exam.coverImage,
     examDate: exam.examDate,
+    examCloseDate: exam.examCloseDate,
     durationMinutes: exam.durationMinutes,
     totalMarks: exam.totalMarks,
     isLive: exam.isLive ?? false,

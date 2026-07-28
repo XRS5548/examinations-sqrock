@@ -12,6 +12,7 @@ const createExamSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
+  examCloseDate: z.string().optional(), // 👈 ADD THIS
   durationMinutes: z.string().optional(),
   totalMarks: z.string().optional(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
@@ -22,6 +23,7 @@ const updateExamSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional().nullable(),
   examDate: z.string().optional().nullable(),
+  examCloseDate: z.string().optional().nullable(), // 👈 ADD THIS
   durationMinutes: z.string().optional().nullable(),
   totalMarks: z.string().optional().nullable(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
@@ -61,6 +63,7 @@ export async function createExam(formData: FormData) {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       examDate: formData.get("examDate") as string,
+      examCloseDate: formData.get("examCloseDate") as string, // 👈 ADD THIS
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
@@ -77,6 +80,7 @@ export async function createExam(formData: FormData) {
       syllabusPdf: validated.syllabusPdf || null,
       coverImage: validated.coverImage || null,
       examDate: validated.examDate ? new Date(validated.examDate) : null,
+      examCloseDate: validated.examCloseDate ? new Date(validated.examCloseDate) : null, // 👈 ADD THIS
       durationMinutes: validated.durationMinutes ? parseInt(validated.durationMinutes) : null,
       totalMarks: validated.totalMarks ? parseInt(validated.totalMarks) : null,
       isLive: false,
@@ -134,6 +138,7 @@ export async function updateExam(id: number, formData: FormData) {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       examDate: formData.get("examDate") as string,
+      examCloseDate: formData.get("examCloseDate") as string, // 👈 ADD THIS
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
@@ -150,6 +155,7 @@ export async function updateExam(id: number, formData: FormData) {
         syllabusPdf: validated.syllabusPdf || null,
         coverImage: validated.coverImage || null,
         examDate: validated.examDate ? new Date(validated.examDate) : null,
+        examCloseDate: validated.examCloseDate ? new Date(validated.examCloseDate) : null, // 👈 ADD THIS
         durationMinutes: validated.durationMinutes ? parseInt(validated.durationMinutes) : null,
         totalMarks: validated.totalMarks ? parseInt(validated.totalMarks) : null,
       })
