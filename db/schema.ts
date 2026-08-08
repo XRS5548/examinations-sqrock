@@ -129,17 +129,28 @@ export const students = pgTable(
 
 export const examRegistrations = pgTable("exam_registrations", {
   id: serial("id").primaryKey(),
+
   examId: integer("exam_id").references(() => exams.id, {
     onDelete: "cascade",
   }),
+
   studentId: integer("student_id").references(() => students.id, {
     onDelete: "cascade",
   }),
+
+  // Domain assigned/entered during application
+  domain: varchar("domain", { length: 255 }),
+
   rollNumber: varchar("roll_number", { length: 50 }).unique(),
+
   score: integer("score").default(0),
+
   cheating: boolean("cheating").default(false),
+
   status: examStatusEnum("status").default("not_started"),
+
   startedAt: timestamp("started_at"),
+
   submittedAt: timestamp("submitted_at"),
 });
 

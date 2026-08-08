@@ -10,6 +10,10 @@ const registrationSchema = z.object({
   email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone number is required"),
   dob: z.string().min(1, "Date of birth is required"),
+
+  // NEW: Domain
+  domain: z.string().min(1, "Domain is required"),
+
   examId: z.coerce.number(),
 });
 
@@ -56,6 +60,10 @@ export async function registerForExam(formData: FormData) {
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
       dob: formData.get("dob") as string,
+
+      // NEW: Get domain from form
+      domain: formData.get("domain") as string,
+
       examId: formData.get("examId") as string,
     };
 
@@ -71,18 +79,18 @@ export async function registerForExam(formData: FormData) {
       .limit(1);
 
     if (examList.length === 0) {
-      return { 
-        success: false, 
-        error: "Exam not found or not available for registration" 
+      return {
+        success: false,
+        error: "Exam not found or not available for registration",
       };
     }
 
     const exam = examList[0];
 
     if (!exam.companyId) {
-      return { 
-        success: false, 
-        error: "Exam is not associated with a company" 
+      return {
+        success: false,
+        error: "Exam is not associated with a company",
       };
     }
 
@@ -94,9 +102,9 @@ export async function registerForExam(formData: FormData) {
       .limit(1);
 
     if (companyList.length === 0) {
-      return { 
-        success: false, 
-        error: "Company not found" 
+      return {
+        success: false,
+        error: "Company not found",
       };
     }
 
@@ -115,6 +123,7 @@ export async function registerForExam(formData: FormData) {
       .limit(1);
 
     let studentId: number;
+
     let studentData = {
       name: validated.name,
       email: validated.email,
@@ -124,11 +133,11 @@ export async function registerForExam(formData: FormData) {
 
     if (student.length > 0) {
       studentId = student[0].id;
-      
+
       // Check if any details are missing and update them
       const existingStudent = student[0];
       let needsUpdate = false;
-      
+
       // Prepare update object with only missing fields
       const updateData: {
         name?: string;
@@ -136,41 +145,41 @@ export async function registerForExam(formData: FormData) {
         phone?: string;
         dob?: string;
       } = {};
-      
+
       if (!existingStudent.name && validated.name) {
         updateData.name = validated.name;
         needsUpdate = true;
       }
-      
+
       if (!existingStudent.email && validated.email) {
         updateData.email = validated.email;
         needsUpdate = true;
       }
-      
+
       if (!existingStudent.phone && validated.phone) {
         updateData.phone = validated.phone;
         needsUpdate = true;
       }
-      
+
       if (!existingStudent.dob && validated.dob) {
         updateData.dob = validated.dob;
         needsUpdate = true;
       }
-      
+
       // Update student if any fields are missing
       if (needsUpdate) {
         await db
           .update(students)
           .set(updateData)
           .where(eq(students.id, studentId));
-        
+
         // Refresh student data after update
         const [updatedStudent] = await db
           .select()
           .from(students)
           .where(eq(students.id, studentId))
           .limit(1);
-        
+
         if (updatedStudent) {
           studentData = {
             name: updatedStudent.name || validated.name,
@@ -202,11 +211,12 @@ export async function registerForExam(formData: FormData) {
         .returning();
 
       if (!newStudent) {
-        return { 
-          success: false, 
-          error: "Failed to create student profile" 
+        return {
+          success: false,
+          error: "Failed to create student profile",
         };
       }
+
       studentId = newStudent.id;
     }
 
@@ -224,17 +234,21 @@ export async function registerForExam(formData: FormData) {
 
     if (existingRegistration.length > 0) {
       const reg = existingRegistration[0];
+
       return {
         success: true,
         registrationId: reg.id,
         rollNumber: reg.rollNumber,
+        domain: reg.domain, // NEW
         alreadyRegistered: true,
       };
     }
 
     // Generate unique roll number
     const year = new Date().getFullYear().toString();
+
     let rollNumber = `${studentId}${company.rollPrefix}${year}`;
+
     if (company.rollInfix) {
       rollNumber = `${studentId}${company.rollPrefix}${company.rollInfix}${year}`;
     }
@@ -265,6 +279,10 @@ export async function registerForExam(formData: FormData) {
       .values({
         examId: validated.examId,
         studentId: studentId,
+
+        // NEW: Save domain with application
+        domain: validated.domain,
+
         rollNumber: finalRollNumber,
         status: "not_started",
         cheating: false,
@@ -273,9 +291,9 @@ export async function registerForExam(formData: FormData) {
       .returning();
 
     if (!registration) {
-      return { 
-        success: false, 
-        error: "Failed to create registration" 
+      return {
+        success: false,
+        error: "Failed to create registration",
       };
     }
 
@@ -283,21 +301,22 @@ export async function registerForExam(formData: FormData) {
       success: true,
       registrationId: registration.id,
       rollNumber: registration.rollNumber,
+      domain: registration.domain, // NEW
       alreadyRegistered: false,
     };
   } catch (error) {
     console.error("Registration error:", error);
-    
+
     if (error instanceof z.ZodError) {
-      return { 
-        success: false, 
-        // error: error.er.map(e => e.message).join(", ") 
+      return {
+        success: false,
+        error: error.issues.map((e) => e.message).join(", "),
       };
     }
-    
-    return { 
-      success: false, 
-      error: "Registration failed. Please try again." 
+
+    return {
+      success: false,
+      error: "Registration failed. Please try again.",
     };
   }
 }
@@ -305,6 +324,10 @@ export async function registerForExam(formData: FormData) {
 export type RegistrationDetails = {
   id: number;
   rollNumber: string | null;
+
+  // NEW
+  domain: string | null;
+
   examName: string | null;
   examDate: Date | null;
   durationMinutes: number | null;
@@ -319,12 +342,18 @@ export type RegistrationDetails = {
   syllabusPdf: string | null;
 };
 
-export async function getRegistrationDetails(registrationId: number): Promise<RegistrationDetails | null> {
+export async function getRegistrationDetails(
+  registrationId: number
+): Promise<RegistrationDetails | null> {
   try {
     const result = await db
       .select({
         id: examRegistrations.id,
         rollNumber: examRegistrations.rollNumber,
+
+        // NEW: Fetch domain
+        domain: examRegistrations.domain,
+
         status: examRegistrations.status,
         createdAt: examRegistrations.startedAt,
         examName: exams.name,
@@ -346,6 +375,7 @@ export async function getRegistrationDetails(registrationId: number): Promise<Re
       .limit(1);
 
     if (result.length === 0) return null;
+
     return result[0];
   } catch (error) {
     console.error("Error fetching registration details:", error);

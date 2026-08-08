@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format, subDays } from "date-fns";
-import { 
-  Calendar, 
-  Building2, 
-  Clock, 
-  Loader2, 
-  CheckCircle, 
+import {
+  Calendar,
+  Building2,
+  Clock,
+  Loader2,
+  CheckCircle,
   AlertCircle,
   Award,
   Users,
@@ -34,11 +34,24 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 
 export default function ExamRegistrationPage() {
   const router = useRouter();
+  const domains = [
+    "Computer Science",
+    "Information Technology",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Electrical Engineering",
+  ];
   const [exams, setExams] = useState<PublicExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", dob: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    dob: "",
+    domain: "",
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -65,6 +78,7 @@ export default function ExamRegistrationPage() {
     fd.set("email", formData.email);
     fd.set("phone", formData.phone);
     fd.set("dob", formData.dob);
+    fd.set("domain", formData.domain);
     fd.set("examId", String(selectedExamId));
 
     const result = await registerForExam(fd);
@@ -103,9 +117,9 @@ export default function ExamRegistrationPage() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
-      transition: { 
+      transition: {
         staggerChildren: 0.1,
         delayChildren: 0.1
       }
@@ -114,8 +128,8 @@ export default function ExamRegistrationPage() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { type: "spring", stiffness: 300, damping: 24 }
     }
@@ -124,13 +138,13 @@ export default function ExamRegistrationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <Navbar />
-      
+
       {/* Decorative elements */}
       <div className="fixed top-20 right-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed bottom-20 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-      
+
       <main className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <motion.div 
+        <motion.div
           initial="hidden"
           animate="visible"
           variants={containerVariants}
@@ -223,7 +237,7 @@ export default function ExamRegistrationPage() {
                             {exams.length} available
                           </span>
                         </div>
-                        
+
                         <div className="grid gap-3">
                           {exams.map((exam) => (
                             <motion.div
@@ -232,14 +246,13 @@ export default function ExamRegistrationPage() {
                               whileTap={{ scale: 0.99 }}
                             >
                               <Card
-                                className={`cursor-pointer transition-all duration-300 ${
-                                  selectedExamId === exam.id
-                                    ? "ring-2 ring-blue-500 border-blue-500 shadow-lg shadow-blue-500/20"
-                                    : "hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md"
-                                }`}
-                                onClick={() => { 
-                                  setSelectedExamId(exam.id); 
-                                  setError(""); 
+                                className={`cursor-pointer transition-all duration-300 ${selectedExamId === exam.id
+                                  ? "ring-2 ring-blue-500 border-blue-500 shadow-lg shadow-blue-500/20"
+                                  : "hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md"
+                                  }`}
+                                onClick={() => {
+                                  setSelectedExamId(exam.id);
+                                  setError("");
                                 }}
                               >
                                 <CardContent className="flex items-center justify-between p-4">
@@ -283,11 +296,10 @@ export default function ExamRegistrationPage() {
                                       </p>
                                     )}
                                   </div>
-                                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                                    selectedExamId === exam.id 
-                                      ? "border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/30" 
-                                      : "border-gray-300 dark:border-gray-600"
-                                  }`}>
+                                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedExamId === exam.id
+                                    ? "border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/30"
+                                    : "border-gray-300 dark:border-gray-600"
+                                    }`}>
                                     {selectedExamId === exam.id && (
                                       <CheckCircle className="h-5 w-5 text-white" />
                                     )}
@@ -334,9 +346,8 @@ export default function ExamRegistrationPage() {
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     onFocus={() => setFocusedField("name")}
                                     onBlur={() => setFocusedField(null)}
-                                    className={`transition-all ${
-                                      focusedField === "name" ? "ring-2 ring-blue-500/20 border-blue-500" : ""
-                                    }`}
+                                    className={`transition-all ${focusedField === "name" ? "ring-2 ring-blue-500/20 border-blue-500" : ""
+                                      }`}
                                     required
                                   />
                                 </div>
@@ -353,9 +364,8 @@ export default function ExamRegistrationPage() {
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     onFocus={() => setFocusedField("email")}
                                     onBlur={() => setFocusedField(null)}
-                                    className={`transition-all ${
-                                      focusedField === "email" ? "ring-2 ring-purple-500/20 border-purple-500" : ""
-                                    }`}
+                                    className={`transition-all ${focusedField === "email" ? "ring-2 ring-purple-500/20 border-purple-500" : ""
+                                      }`}
                                     required
                                   />
                                 </div>
@@ -371,9 +381,8 @@ export default function ExamRegistrationPage() {
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     onFocus={() => setFocusedField("phone")}
                                     onBlur={() => setFocusedField(null)}
-                                    className={`transition-all ${
-                                      focusedField === "phone" ? "ring-2 ring-green-500/20 border-green-500" : ""
-                                    }`}
+                                    className={`transition-all ${focusedField === "phone" ? "ring-2 ring-green-500/20 border-green-500" : ""
+                                      }`}
                                     required
                                   />
                                 </div>
@@ -389,13 +398,78 @@ export default function ExamRegistrationPage() {
                                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                                     onFocus={() => setFocusedField("dob")}
                                     onBlur={() => setFocusedField(null)}
-                                    className={`transition-all ${
-                                      focusedField === "dob" ? "ring-2 ring-orange-500/20 border-orange-500" : ""
-                                    }`}
+                                    className={`transition-all ${focusedField === "dob" ? "ring-2 ring-orange-500/20 border-orange-500" : ""
+                                      }`}
                                     required
                                   />
                                 </div>
                               </div>
+                              <div className="space-y-1.5 relative">
+                                <Label htmlFor="domain" className="text-sm font-medium">
+                                  Domain Name
+                                </Label>
+
+                                <Input
+                                  id="domain"
+                                  type="text"
+                                  placeholder="Search domain..."
+                                  value={formData.domain}
+                                  onChange={(e) => {
+                                    setFormData({
+                                      ...formData,
+                                      domain: e.target.value,
+                                    });
+                                  }}
+                                  onFocus={() => setFocusedField("domain")}
+                                  onBlur={() => {
+                                    // Delay so option click can happen
+                                    setTimeout(() => setFocusedField(null), 150);
+                                  }}
+                                  className={`transition-all ${focusedField === "domain"
+                                    ? "ring-2 ring-blue-500/20 border-blue-500"
+                                    : ""
+                                    }`}
+                                  required
+                                />
+
+                                {/* Search Suggestions */}
+                                {focusedField === "domain" && formData.domain.length > 0 && (
+                                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+                                    {domains
+                                      .filter((domain) =>
+                                        domain.toLowerCase().includes(formData.domain.toLowerCase())
+                                      )
+                                      .map((domain) => (
+                                        <button
+                                          key={domain}
+                                          type="button"
+                                          className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+
+                                            setFormData({
+                                              ...formData,
+                                              domain,
+                                            });
+
+                                            setFocusedField(null);
+                                          }}
+                                        >
+                                          {domain}
+                                        </button>
+                                      ))}
+
+                                    {domains.filter((domain) =>
+                                      domain.toLowerCase().includes(formData.domain.toLowerCase())
+                                    ).length === 0 && (
+                                        <div className="px-4 py-3 text-sm text-gray-500">
+                                          No domain found
+                                        </div>
+                                      )}
+                                  </div>
+                                )}
+                              </div>
+
 
                               {error && (
                                 <motion.div
@@ -408,8 +482,8 @@ export default function ExamRegistrationPage() {
                                 </motion.div>
                               )}
 
-                              <Button 
-                                type="submit" 
+                              <Button
+                                type="submit"
                                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-6 text-lg transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 rounded-xl group"
                                 disabled={submitting}
                               >
