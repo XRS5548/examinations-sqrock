@@ -20,7 +20,9 @@ import {
   Calendar as CalendarIcon,
   Sparkles,
   Shield,
-  ChevronRight
+  ChevronRight,
+  Eye,        // NEW
+  X,          // NEW
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,19 +33,28 @@ import { Navbar } from "@/websiteComponents/home/Navbar";
 import { Footer } from "@/websiteComponents/home/Footer";
 import { getAvailableExams, registerForExam, type PublicExam } from "@/actions/public-registration";
 import { motion, AnimatePresence, Variants } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ExamRegistrationPage() {
   const router = useRouter();
   const domains = [
-    "Computer Science",
-    "Information Technology",
-    "Mechanical Engineering",
-    "Civil Engineering",
-    "Electrical Engineering",
+    "Full Stack Development",
+    "Web Development",
+    "Data Science",
+    "Python",
+    "Java",
+    "Android Development",
+    "Frontend Development",
+    "Backend Development",
+    "AI & Machine Learning",
+    "Cyber Security",
+    "UI/UX Design",
+    "Cloud Computing",
   ];
   const [exams, setExams] = useState<PublicExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -55,6 +66,7 @@ export default function ExamRegistrationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [infoExam, setInfoExam] = useState<PublicExam | null>(null);
 
   useEffect(() => {
     getAvailableExams().then((data) => {
@@ -257,6 +269,7 @@ export default function ExamRegistrationPage() {
                               >
                                 <CardContent className="flex items-center justify-between p-4">
                                   <div className="flex-1 min-w-0">
+
                                     <div className="flex items-center gap-2">
                                       <p className="font-semibold text-gray-900 dark:text-white truncate">
                                         {exam.name}
@@ -295,7 +308,22 @@ export default function ExamRegistrationPage() {
                                         Closed: {format(new Date(exam.examDate), "MMM dd, yyyy")}
                                       </p>
                                     )}
+
+
                                   </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mr-3 flex-shrink-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInfoExam(exam);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1.5" />
+                                    View Details
+                                  </Button>
                                   <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedExamId === exam.id
                                     ? "border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/30"
                                     : "border-gray-300 dark:border-gray-600"
@@ -409,28 +437,28 @@ export default function ExamRegistrationPage() {
                                   Domain Name
                                 </Label>
 
-                                <Input
-                                  id="domain"
-                                  type="text"
-                                  placeholder="Search domain..."
+                                <Select
                                   value={formData.domain}
-                                  onChange={(e) => {
+                                  onValueChange={(value) =>
                                     setFormData({
                                       ...formData,
-                                      domain: e.target.value,
-                                    });
-                                  }}
-                                  onFocus={() => setFocusedField("domain")}
-                                  onBlur={() => {
-                                    // Delay so option click can happen
-                                    setTimeout(() => setFocusedField(null), 150);
-                                  }}
-                                  className={`transition-all ${focusedField === "domain"
-                                    ? "ring-2 ring-blue-500/20 border-blue-500"
-                                    : ""
-                                    }`}
+                                      domain: value,
+                                    })
+                                  }
                                   required
-                                />
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select your domain" />
+                                  </SelectTrigger>
+
+                                  <SelectContent>
+                                    {domains.map((domain) => (
+                                      <SelectItem key={domain} value={domain}>
+                                        {domain}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
 
                                 {/* Search Suggestions */}
                                 {focusedField === "domain" && formData.domain.length > 0 && (
@@ -516,6 +544,153 @@ export default function ExamRegistrationPage() {
           </motion.div>
         </motion.div>
       </main>
+
+      {infoExam && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setInfoExam(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-gray-900 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur px-6 py-5">
+              <div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Exam Information
+                </p>
+
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {infoExam.name}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setInfoExam(null)}
+                className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+
+              {/* Company */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20">
+                <div className="p-2.5 rounded-lg bg-blue-500/10">
+                  <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Conducted By
+                  </p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {infoExam.companyName || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Exam Description */}
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                  About This Exam
+                </h3>
+
+                <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  {infoExam.description || "No description available for this exam."}
+                </p>
+              </div>
+
+              {/* Exam Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {/* Date */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Exam Date
+                    </span>
+                  </div>
+
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {formatExamDate(infoExam.examDate)}
+                  </p>
+                </div>
+
+                {/* Duration */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Duration
+                    </span>
+                  </div>
+
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {infoExam.durationMinutes
+                      ? `${infoExam.durationMinutes} Minutes`
+                      : "Not specified"}
+                  </p>
+                </div>
+
+                {/* Marks */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Award className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Total Marks
+                    </span>
+                  </div>
+
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {infoExam.totalMarks ?? "Not specified"}
+                  </p>
+                </div>
+
+                {/* Status */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Registration
+                    </span>
+                  </div>
+
+                  <p className="font-semibold text-green-600 dark:text-green-400">
+                    Open
+                  </p>
+                </div>
+              </div>
+
+              {/* Action */}
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl py-6"
+                  onClick={() => {
+                    setSelectedExamId(infoExam.id);
+                    setInfoExam(null);
+                    setError("");
+                  }}
+                >
+                  Select This Exam
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </div>
+
+            </div>
+          </motion.div>
+        </div>
+      )}
       <Footer />
     </div>
   );

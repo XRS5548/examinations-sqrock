@@ -9,6 +9,7 @@ import { StudentsSelectionTable } from "./StudentsSelectionTable";
 import { AssignedStudentsTable } from "./AssignedStudentsTable";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -57,7 +58,7 @@ export default async function AssignStudentsPage({ params }: PageProps) {
     .where(eq(examRegistrations.examId, examId));
 
   const assignedStudentIds = assignedRegistrationsRaw.map(reg => reg.studentId).filter((id): id is number => id !== null);
-  
+
   // Fetch assigned student details using inArray
   let assignedStudents: any[] = [];
   if (assignedStudentIds.length > 0) {
@@ -72,6 +73,7 @@ export default async function AssignStudentsPage({ params }: PageProps) {
     examId: reg.examId ?? 0,
     studentId: reg.studentId ?? 0,
     rollNumber: reg.rollNumber,
+    domain: reg.domain, // ✅ ADD THIS
     score: reg.score ?? 0,
     cheating: reg.cheating ?? false,
     status: reg.status,
@@ -109,34 +111,95 @@ export default async function AssignStudentsPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Available Students</h2>
-            <Badge variant="outline">{availableStudents.length} students</Badge>
-          </div>
-          <Suspense fallback={<div className="text-center py-12">Loading students...</div>}>
-            <StudentsSelectionTable
-              examId={examId}
-              students={availableStudents}
-              companyPrefix={company.rollPrefix}
-              companyInfix={company.rollInfix}
-            />
-          </Suspense>
-        </div>
+      <div className="space-y-4">
+        <Tabs defaultValue="available" className="w-full">
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Assigned Students</h2>
-            <Badge variant="outline">{assignedRegistrations.length} assigned</Badge>
+          {/* Tabs */}
+          <div className="px-1">
+            <TabsList className="grid w-full grid-cols-2  ">
+              <TabsTrigger
+                value="available"
+                className=""
+              >
+                Available Students ({availableStudents.length})
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="assigned"
+                className=""
+              >
+                Assigned Students ({assignedRegistrations.length})
+              </TabsTrigger>
+            </TabsList>
           </div>
-          <Suspense fallback={<div className="text-center py-12">Loading assignments...</div>}>
-            <AssignedStudentsTable
-              examId={examId}
-              initialAssignments={assignedRegistrations}
-            />
-          </Suspense>
-        </div>
+
+          {/* AVAILABLE */}
+          <TabsContent value="available" className="mt-5">
+            <div className="rounded-xl border bg-card overflow-hidden">
+
+              <div className="px-6 py-5 border-b">
+                <h2 className="text-xl font-semibold">
+                  Available Students
+                </h2>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Select students to assign them to this exam.
+                </p>
+              </div>
+
+              <div className="p-4">
+                <Suspense
+                  fallback={
+                    <div className="text-center py-12">
+                      Loading students...
+                    </div>
+                  }
+                >
+                  <StudentsSelectionTable
+                    examId={examId}
+                    students={availableStudents}
+                    companyPrefix={company.rollPrefix}
+                    companyInfix={company.rollInfix}
+                  />
+                </Suspense>
+              </div>
+
+            </div>
+          </TabsContent>
+
+          {/* ASSIGNED */}
+          <TabsContent value="assigned" className="mt-5">
+            <div className="rounded-xl border bg-card overflow-hidden">
+
+              <div className="px-6 py-5 border-b">
+                <h2 className="text-xl font-semibold">
+                  Assigned Students
+                </h2>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Students currently assigned to this exam.
+                </p>
+              </div>
+
+              <div className="p-4">
+                <Suspense
+                  fallback={
+                    <div className="text-center py-12">
+                      Loading assignments...
+                    </div>
+                  }
+                >
+                  <AssignedStudentsTable
+                    examId={examId}
+                    initialAssignments={assignedRegistrations}
+                  />
+                </Suspense>
+              </div>
+
+            </div>
+          </TabsContent>
+
+        </Tabs>
       </div>
     </div>
   );

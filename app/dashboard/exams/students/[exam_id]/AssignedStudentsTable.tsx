@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { removeStudentFromExam } from "@/actions/examStudents"; 
+import { removeStudentFromExam } from "@/actions/examStudents";
 import { toast } from "sonner";
 
 type Assignment = {
@@ -38,6 +38,7 @@ type Assignment = {
   examId: number;
   studentId: number;
   rollNumber: string | null;
+  domain: string | null;
   status: "not_started" | "in_progress" | "completed" | "failed" | null;
   cheating: boolean | null;
   startedAt: Date | null;
@@ -103,6 +104,7 @@ export function AssignedStudentsTable({
       "Student Name",
       "Email",
       "Phone",
+      "Domain",
       "Status",
       "Cheating Status",
       "Started At",
@@ -132,12 +134,13 @@ export function AssignedStudentsTable({
         assignment.student?.name || "N/A",
         assignment.student?.email || "N/A",
         assignment.student?.phone || "N/A",
+        assignment.domain || "N/A", // NEW
         statusText,
         assignment.cheating ? "Flagged for Cheating" : "Clean",
-        assignment.startedAt 
+        assignment.startedAt
           ? format(new Date(assignment.startedAt), "MMM dd, yyyy HH:mm:ss")
           : "Not Started",
-        assignment.submittedAt 
+        assignment.submittedAt
           ? format(new Date(assignment.submittedAt), "MMM dd, yyyy HH:mm:ss")
           : "Not Submitted"
       ];
@@ -146,8 +149,8 @@ export function AssignedStudentsTable({
     // Create CSV content
     const csvContent = [
       headers.join(","),
-      ...rows.map(row => 
-        row.map(cell => 
+      ...rows.map(row =>
+        row.map(cell =>
           typeof cell === "string" && (cell.includes(",") || cell.includes('"') || cell.includes("\n"))
             ? `"${cell.replace(/"/g, '""').replace(/\n/g, ' ')}"`
             : cell
@@ -165,7 +168,7 @@ export function AssignedStudentsTable({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     toast.success(`Exported ${assignments.length} students to CSV`);
   };
 
@@ -175,6 +178,7 @@ export function AssignedStudentsTable({
       studentName: assignment.student?.name,
       studentEmail: assignment.student?.email,
       studentPhone: assignment.student?.phone,
+      domain: assignment.domain,
       status: assignment.status,
       cheating: assignment.cheating,
       startedAt: assignment.startedAt,
@@ -191,7 +195,7 @@ export function AssignedStudentsTable({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     toast.success(`Exported ${assignments.length} students to JSON`);
   };
 
@@ -239,6 +243,7 @@ export function AssignedStudentsTable({
                 <TableHead>Roll Number</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Domain</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Cheating</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -254,6 +259,9 @@ export function AssignedStudentsTable({
                     {assignment.student?.name || "—"}
                   </TableCell>
                   <TableCell>{assignment.student?.email || "—"}</TableCell>
+                  <TableCell>
+                    {assignment.domain || "—"}
+                  </TableCell>
                   <TableCell>{getStatusBadge(assignment.status)}</TableCell>
                   <TableCell>
                     {assignment.cheating ? (
