@@ -41,6 +41,7 @@ export default function ExamRegistrationPage() {
     "Web Development",
     "Data Science",
     "Python",
+    
     "Java",
     "Android Development",
     "Frontend Development",
