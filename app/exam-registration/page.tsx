@@ -47,9 +47,7 @@ export default function ExamRegistrationPage() {
     "Frontend Development",
     "Backend Development",
     "AI & Machine Learning",
-    "Cyber Security",
     "UI/UX Design",
-    "Cloud Computing",
   ];
   const [exams, setExams] = useState<PublicExam[]>([]);
   const [loading, setLoading] = useState(true);
