@@ -38,16 +38,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function ExamRegistrationPage() {
   const router = useRouter();
   const domains = [
-    "Web Development",
-    "Data Science",
-    "Python",
-    
-    "Java",
-    "Android Development",
-    "Frontend Development",
-    "Backend Development",
-    "UI/UX Design",
-  ];
+  "Web Development",
+  "Data Science",
+  "Python",
+  "Java",
+  "C++",
+  "Android Development",
+  "Frontend Development",
+  "Backend Development",
+  "UI/UX Design",
+  "Cyber Security",
+  "Digital Marketing",
+];
   const [exams, setExams] = useState<PublicExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
