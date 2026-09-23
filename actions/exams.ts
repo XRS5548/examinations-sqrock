@@ -12,22 +12,28 @@ const createExamSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
-  examCloseDate: z.string().optional(), // 👈 ADD THIS
+  examCloseDate: z.string().optional(),
   durationMinutes: z.string().optional(),
   totalMarks: z.string().optional(),
+  passingScore: z.string().optional(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
   coverImage: z.string().url("Must be a valid URL").optional().nullable(),
+  emailSubject: z.string().optional().nullable(),
+  emailBody: z.string().optional().nullable(),
 });
 
 const updateExamSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional().nullable(),
   examDate: z.string().optional().nullable(),
-  examCloseDate: z.string().optional().nullable(), // 👈 ADD THIS
+  examCloseDate: z.string().optional().nullable(),
   durationMinutes: z.string().optional().nullable(),
   totalMarks: z.string().optional().nullable(),
+  passingScore: z.string().optional().nullable(),
   syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
   coverImage: z.string().url("Must be a valid URL").optional().nullable(),
+  emailSubject: z.string().optional().nullable(),
+  emailBody: z.string().optional().nullable(),
 });
 
 // Helper function to get user's company
@@ -63,30 +69,46 @@ export async function createExam(formData: FormData) {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       examDate: formData.get("examDate") as string,
-      examCloseDate: formData.get("examCloseDate") as string, // 👈 ADD THIS
+      examCloseDate: formData.get("examCloseDate") as string,
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
+      passingScore: formData.get("passingScore") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
       coverImage: formData.get("coverImage") as string,
+      emailSubject: formData.get("emailSubject") as string,
+      emailBody: formData.get("emailBody") as string,
     };
 
     const validated = createExamSchema.parse(rawData);
 
-    // Insert exam using Drizzle
-    const newExam = await db.insert(exams).values({
-      companyId: companyId,
-      name: validated.name,
-      description: validated.description || null,
-      syllabusPdf: validated.syllabusPdf || null,
-      coverImage: validated.coverImage || null,
-      examDate: validated.examDate ? new Date(validated.examDate) : null,
-      examCloseDate: validated.examCloseDate ? new Date(validated.examCloseDate) : null, // 👈 ADD THIS
-      durationMinutes: validated.durationMinutes ? parseInt(validated.durationMinutes) : null,
-      totalMarks: validated.totalMarks ? parseInt(validated.totalMarks) : null,
-      isLive: false,
-      resultAnnounced: false,
-      createdAt: new Date(),
-    }).returning();
+    const newExam = await db
+      .insert(exams)
+      .values({
+        companyId: companyId,
+        name: validated.name,
+        description: validated.description || null,
+        syllabusPdf: validated.syllabusPdf || null,
+        coverImage: validated.coverImage || null,
+        examDate: validated.examDate ? new Date(validated.examDate) : null,
+        examCloseDate: validated.examCloseDate
+          ? new Date(validated.examCloseDate)
+          : null,
+        durationMinutes: validated.durationMinutes
+          ? parseInt(validated.durationMinutes)
+          : null,
+        totalMarks: validated.totalMarks
+          ? parseInt(validated.totalMarks)
+          : null,
+        passingScore: validated.passingScore
+          ? parseInt(validated.passingScore)
+          : 60, // default fallback
+        emailSubject: validated.emailSubject || undefined, // let DB default apply
+        emailBody: validated.emailBody || undefined,
+        isLive: false,
+        resultAnnounced: false,
+        createdAt: new Date(),
+      })
+      .returning();
 
     if (!newExam || newExam.length === 0) {
       return { success: false, error: "Failed to create exam" };
@@ -138,26 +160,41 @@ export async function updateExam(id: number, formData: FormData) {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       examDate: formData.get("examDate") as string,
-      examCloseDate: formData.get("examCloseDate") as string, // 👈 ADD THIS
+      examCloseDate: formData.get("examCloseDate") as string,
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
+      passingScore: formData.get("passingScore") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
       coverImage: formData.get("coverImage") as string,
+      emailSubject: formData.get("emailSubject") as string,
+      emailBody: formData.get("emailBody") as string,
     };
 
     const validated = updateExamSchema.parse(rawData);
 
     // Update exam using Drizzle
-    const updatedExam = await db.update(exams)
+    const updatedExam = await db
+      .update(exams)
       .set({
         name: validated.name,
         description: validated.description || null,
         syllabusPdf: validated.syllabusPdf || null,
         coverImage: validated.coverImage || null,
         examDate: validated.examDate ? new Date(validated.examDate) : null,
-        examCloseDate: validated.examCloseDate ? new Date(validated.examCloseDate) : null, // 👈 ADD THIS
-        durationMinutes: validated.durationMinutes ? parseInt(validated.durationMinutes) : null,
-        totalMarks: validated.totalMarks ? parseInt(validated.totalMarks) : null,
+        examCloseDate: validated.examCloseDate
+          ? new Date(validated.examCloseDate)
+          : null,
+        durationMinutes: validated.durationMinutes
+          ? parseInt(validated.durationMinutes)
+          : null,
+        totalMarks: validated.totalMarks
+          ? parseInt(validated.totalMarks)
+          : null,
+        passingScore: validated.passingScore
+          ? parseInt(validated.passingScore)
+          : null,
+        emailSubject: validated.emailSubject,
+        emailBody: validated.emailBody,
       })
       .where(eq(exams.id, id))
       .returning();

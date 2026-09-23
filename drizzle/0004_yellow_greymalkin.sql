@@ -1,1 +1,0 @@
-ALTER TABLE "exams" ALTER COLUMN "exam_close_date" SET DEFAULT now();

@@ -1,3 +1,5 @@
+// db/schema.ts
+
 import {
   pgTable,
   serial,
@@ -96,12 +98,30 @@ export const exams = pgTable("exams", {
   coverImage: text("cover_image"),
   isClosed: boolean("is_closed").default(false),
   examDate: timestamp("exam_date"),
-  examCloseDate: timestamp("exam_close_date").defaultNow(), // 👈 NEW FIELD
+  examCloseDate: timestamp("exam_close_date").defaultNow(),
   durationMinutes: integer("duration_minutes"),
   totalMarks: integer("total_marks"),
   createdAt: timestamp("created_at").defaultNow(),
+  passingScore: integer("passing_score").default(60),
+
+  emailSubject: varchar("email_subject", { length: 500 })
+    .default("Your Exam Result – {{examName}}"),
+
+  emailBody: text("email_body")
+    .default(`Dear {{name}},
+
+Your result for the exam "{{examName}}" has been announced.
+
+Score: {{score}} / {{totalMarks}}
+Passing Score: {{passingScore}}
+Result: {{result}}
+
+Thank you for participating.
+
+Regards,
+SQROCK Team`),
   isLive: boolean("is_live").default(false),
-  isPublic: boolean("is_public").default(false), 
+  isPublic: boolean("is_public").default(false),
   resultAnnounced: boolean("result_announced").default(false),
 });
 
@@ -152,6 +172,62 @@ export const examRegistrations = pgTable("exam_registrations", {
   startedAt: timestamp("started_at"),
 
   submittedAt: timestamp("submitted_at"),
+
+  // =====================================================
+  // NEW: Education Details (collected during registration)
+  // =====================================================
+
+  universityName: varchar("university_name", { length: 255 }),
+
+  collegeName: varchar("college_name", { length: 255 }),
+
+  course: varchar("course", { length: 100 }),
+
+  branch: varchar("branch", { length: 100 }),
+
+  semester: varchar("semester", { length: 50 }),
+
+  enrollmentNumber: varchar("enrollment_number", { length: 100 }),
+
+  graduationYear: integer("graduation_year"),
+
+  // =====================================================
+  // NEW: Address Details (collected during registration)
+  // =====================================================
+
+  address: text("address"),
+
+  city: varchar("city", { length: 100 }),
+
+  state: varchar("state", { length: 100 }),
+
+  country: varchar("country", { length: 100 }).default("India"),
+
+  pincode: varchar("pincode", { length: 10 }),
+
+  // =====================================================
+  // NEW: Additional Personal Details
+  // =====================================================
+
+  gender: varchar("gender", { length: 20 }),
+
+  // =====================================================
+  // NEW: Internship Preferences (for offer letter)
+  // =====================================================
+
+  preferredStartDate: date("preferred_start_date"),
+
+  preferredDuration: varchar("preferred_duration", { length: 50 }),
+
+  // =====================================================
+  // NEW: Emergency Contact
+  // =====================================================
+
+  emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
+
+  emergencyContactPhone: varchar("emergency_contact_phone", { length: 20 }),
+
+  emergencyContactRelation: varchar("emergency_contact_relation", { length: 50 }),
 });
 
 /* ================= QUESTIONS ================= */

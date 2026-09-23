@@ -1,1 +1,0 @@
-ALTER TABLE "exam_registrations" ADD COLUMN "domain" varchar(255);

@@ -1,32 +1,66 @@
 // components/dashboard/exams/EditExamDialog.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { updateExam } from "@/actions/exams";
 import { toast } from "sonner";
-import { Users, FileQuestion, BarChart3, Eye, Link as LinkIcon } from "lucide-react";
+import {
+  Users,
+  FileQuestion,
+  BarChart3,
+  Eye,
+  Link as LinkIcon,
+} from "lucide-react";
 
 const examSchema = z.object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
-  examCloseDate: z.string().optional(), // 👈 ADD THIS
+  examCloseDate: z.string().optional(),
   durationMinutes: z.string().optional(),
   totalMarks: z.string().optional(),
-  syllabusPdf: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  coverImage: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  passingScore: z.string().optional(),
+  syllabusPdf: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
+  coverImage: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
+  emailSubject: z.string().optional(),
+  emailBody: z.string().optional(),
 });
 
 type FormData = z.infer<typeof examSchema>;
+
+// Same placeholder list as CreateExamDialog
+const EMAIL_PLACEHOLDERS = [
+  { key: "{{name}}", label: "Student Name" },
+  { key: "{{examName}}", label: "Exam Name" },
+  { key: "{{score}}", label: "Score" },
+  { key: "{{totalMarks}}", label: "Total Marks" },
+  { key: "{{passingScore}}", label: "Passing Score" },
+  { key: "{{result}}", label: "Result (Pass/Fail)" },
+];
 
 interface EditExamDialogProps {
   exam: {
@@ -34,25 +68,39 @@ interface EditExamDialogProps {
     name: string | null;
     description: string | null;
     examDate: Date | null;
-    examCloseDate: Date | null; // 👈 ADD THIS
+    examCloseDate: Date | null;
     durationMinutes: number | null;
     totalMarks: number | null;
+    passingScore: number | null;
     syllabusPdf: string | null;
     coverImage: string | null;
+    emailSubject: string | null;
+    emailBody: string | null;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExamUpdated: (exam: any) => void;
 }
 
-export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: EditExamDialogProps) {
+export function EditExamDialog({
+  exam,
+  open,
+  onOpenChange,
+  onExamUpdated,
+}: EditExamDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // Refs for cursor-based placeholder insertion
+  const emailSubjectRef = useRef<HTMLInputElement>(null);
+  const emailBodyRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(examSchema),
@@ -63,33 +111,71 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
       reset({
         name: exam.name || "",
         description: exam.description || "",
-        examDate: exam.examDate ? new Date(exam.examDate).toISOString().slice(0, 16) : "",
-        examCloseDate: exam.examCloseDate ? new Date(exam.examCloseDate).toISOString().slice(0, 16) : "", // 👈 ADD THIS
+        examDate: exam.examDate
+          ? new Date(exam.examDate).toISOString().slice(0, 16)
+          : "",
+        examCloseDate: exam.examCloseDate
+          ? new Date(exam.examCloseDate).toISOString().slice(0, 16)
+          : "",
         durationMinutes: exam.durationMinutes?.toString() || "",
         totalMarks: exam.totalMarks?.toString() || "",
+        passingScore: exam.passingScore?.toString() || "60",
         syllabusPdf: exam.syllabusPdf || "",
         coverImage: exam.coverImage || "",
+        emailSubject: exam.emailSubject || "",
+        emailBody: exam.emailBody || "",
       });
     }
   }, [exam, reset]);
 
+  // Insert placeholder at cursor position
+  const insertPlaceholder = (
+    field: "emailSubject" | "emailBody",
+    placeholder: string
+  ) => {
+    const ref = field === "emailSubject" ? emailSubjectRef : emailBodyRef;
+    const el = ref.current;
+    if (!el) return;
+
+    const currentValue = getValues(field) || "";
+    const start = el.selectionStart ?? currentValue.length;
+    const end = el.selectionEnd ?? currentValue.length;
+
+    const newValue =
+      currentValue.slice(0, start) + placeholder + currentValue.slice(end);
+
+    setValue(field, newValue, { shouldDirty: true });
+
+    requestAnimationFrame(() => {
+      el.focus();
+      const cursor = start + placeholder.length;
+      el.setSelectionRange(cursor, cursor);
+    });
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!exam) return;
-    
+
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append("name", data.name);
       if (data.description) formData.append("description", data.description);
       if (data.examDate) formData.append("examDate", data.examDate);
-      if (data.examCloseDate) formData.append("examCloseDate", data.examCloseDate); // 👈 ADD THIS
-      if (data.durationMinutes) formData.append("durationMinutes", data.durationMinutes);
+      if (data.examCloseDate)
+        formData.append("examCloseDate", data.examCloseDate);
+      if (data.durationMinutes)
+        formData.append("durationMinutes", data.durationMinutes);
       if (data.totalMarks) formData.append("totalMarks", data.totalMarks);
+      if (data.passingScore) formData.append("passingScore", data.passingScore);
       if (data.syllabusPdf) formData.append("syllabusPdf", data.syllabusPdf);
       if (data.coverImage) formData.append("coverImage", data.coverImage);
+      if (data.emailSubject)
+        formData.append("emailSubject", data.emailSubject);
+      if (data.emailBody) formData.append("emailBody", data.emailBody);
 
       const result = await updateExam(exam.id, formData);
-      
+
       if (result.success) {
         toast.success("Exam updated successfully");
         onExamUpdated(result.exam);
@@ -112,14 +198,14 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Exam</DialogTitle>
-          <DialogDescription>
-            Update the exam details below.
-          </DialogDescription>
+          <DialogDescription>Update the exam details below.</DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Exam Name *</Label>
             <Input
@@ -132,6 +218,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
             )}
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -141,6 +228,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
             />
           </div>
 
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="examDate">Exam Date (Start)</Label>
@@ -150,9 +238,8 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
                 {...register("examDate")}
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="examCloseDate">Exam Close Date (End)</Label> {/* 👈 ADD THIS */}
+              <Label htmlFor="examCloseDate">Exam Close Date (End)</Label>
               <Input
                 id="examCloseDate"
                 type="datetime-local"
@@ -164,9 +251,10 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Duration, Total Marks, Passing Score */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="durationMinutes">Duration (minutes)</Label>
+              <Label htmlFor="durationMinutes">Duration (min)</Label>
               <Input
                 id="durationMinutes"
                 type="number"
@@ -174,7 +262,6 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
                 {...register("durationMinutes")}
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="totalMarks">Total Marks</Label>
               <Input
@@ -184,8 +271,18 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
                 {...register("totalMarks")}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="passingScore">Passing Score</Label>
+              <Input
+                id="passingScore"
+                type="number"
+                placeholder="60"
+                {...register("passingScore")}
+              />
+            </div>
           </div>
 
+          {/* Syllabus PDF */}
           <div className="space-y-2">
             <Label htmlFor="syllabusPdf">Syllabus PDF URL</Label>
             <Input
@@ -195,10 +292,13 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               {...register("syllabusPdf")}
             />
             {errors.syllabusPdf && (
-              <p className="text-sm text-red-500">{errors.syllabusPdf.message}</p>
+              <p className="text-sm text-red-500">
+                {errors.syllabusPdf.message}
+              </p>
             )}
           </div>
 
+          {/* Cover Image */}
           <div className="space-y-2">
             <Label htmlFor="coverImage">Cover Image URL</Label>
             <Input
@@ -208,13 +308,85 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               {...register("coverImage")}
             />
             {errors.coverImage && (
-              <p className="text-sm text-red-500">{errors.coverImage.message}</p>
+              <p className="text-sm text-red-500">
+                {errors.coverImage.message}
+              </p>
             )}
+          </div>
+
+          {/* ============ EMAIL TEMPLATE SECTION ============ */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold mb-3">
+              Result Email Template
+            </h3>
+
+            {/* Placeholder chips */}
+            <div className="mb-3">
+              <Label className="text-xs text-muted-foreground">
+                Click a placeholder to insert at cursor position:
+              </Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {EMAIL_PLACEHOLDERS.map((p) => (
+                  <Badge
+                    key={p.key}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                    onClick={() =>
+                      insertPlaceholder(
+                        document.activeElement === emailSubjectRef.current
+                          ? "emailSubject"
+                          : "emailBody",
+                        p.key
+                      )
+                    }
+                  >
+                    {p.key}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Email Subject */}
+            <div className="space-y-2">
+              <Label htmlFor="emailSubject">Email Subject</Label>
+              <Input
+                id="emailSubject"
+                placeholder="Your Exam Result – {{examName}}"
+                {...register("emailSubject")}
+                ref={(e) => {
+                  register("emailSubject").ref(e);
+                  emailSubjectRef.current = e;
+                }}
+              />
+            </div>
+
+            {/* Email Body */}
+            <div className="space-y-2 mt-3">
+              <Label htmlFor="emailBody">Email Body</Label>
+              <Textarea
+                id="emailBody"
+                rows={10}
+                placeholder="Dear {{name}}, ..."
+                {...register("emailBody")}
+                ref={(e) => {
+                  register("emailBody").ref(e);
+                  emailBodyRef.current = e;
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use placeholders like{" "}
+                <code className="bg-muted px-1 rounded">{"{{name}}"}</code>,{" "}
+                <code className="bg-muted px-1 rounded">{"{{score}}"}</code>,
+                etc.
+              </p>
+            </div>
           </div>
 
           {/* Exam Links Section */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-            <Label className="text-sm font-semibold mb-2 block">Exam Links</Label>
+            <Label className="text-sm font-semibold mb-2 block">
+              Exam Links
+            </Label>
             <div className="space-y-2">
               <Button
                 type="button"
@@ -233,9 +405,10 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
 
           {/* Action Buttons Section */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-            <Label className="text-sm font-semibold mb-2 block">Exam Management</Label>
-            
-            {/* Manage Questions Button */}
+            <Label className="text-sm font-semibold mb-2 block">
+              Exam Management
+            </Label>
+
             <Button
               type="button"
               variant="outline"
@@ -248,8 +421,7 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               <FileQuestion className="mr-2 h-4 w-4" />
               Manage Questions
             </Button>
-            
-            {/* Assign Students Button */}
+
             <Button
               type="button"
               variant="outline"
@@ -263,7 +435,6 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               Assign Students
             </Button>
 
-            {/* View Results Button */}
             <Button
               type="button"
               variant="outline"
@@ -277,25 +448,25 @@ export function EditExamDialog({ exam, open, onOpenChange, onExamUpdated }: Edit
               View Results
             </Button>
 
-            {/* Preview Exam Button */}
             <Button
               type="button"
               variant="outline"
               className="w-full justify-start"
               onClick={() => {
                 onOpenChange(false);
-                window.open(`/exam/${exam?.id}`, '_blank');
+                window.open(`/exam/${exam?.id}`, "_blank");
               }}
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview Exam
             </Button>
-            
+
             <p className="text-xs text-muted-foreground mt-2">
               Add questions, assign students, view results, or preview the exam
             </p>
           </div>
 
+          {/* Footer Actions */}
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"

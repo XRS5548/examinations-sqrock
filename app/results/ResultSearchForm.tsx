@@ -3,20 +3,20 @@
 
 import { useState, useRef } from "react";
 import { searchStudentResult } from "@/actions/results-public";
-import { 
-  Loader2, 
-  Download, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
-  Search, 
-  User, 
-  Mail, 
-  Award, 
-  Calendar, 
-  TrendingUp, 
+import { InternshipOfferLetterDownload } from "./InternshipOfferLetterDownload";
+import {
+  Loader2,
+  Download,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Search,
+  User,
+  Mail,
+  Award,
+  Calendar,
+  TrendingUp,
   Users,
-  FileText,
   Printer
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+
+// Types
+interface RegistrationData {
+  gender?: string | null;
+  phone?: string | null;
+  dob?: Date | null;
+  universityName?: string | null;
+  collegeName?: string | null;
+  course?: string | null;
+  branch?: string | null;
+  semester?: string | null;
+  enrollmentNumber?: string | null;
+  graduationYear?: number | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
+  domain?: string | null;
+  preferredStartDate?: string | null;
+  preferredDuration?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
+}
 
 interface ResultData {
   id: number;
@@ -38,9 +63,10 @@ interface ResultData {
   cheating: boolean;
   submittedAt: Date;
   rank?: number;
+  registrationData?: RegistrationData;
 }
 
-// PDF Styles
+// PDF Styles (same as before)
 const pdfStyles = StyleSheet.create({
   page: {
     padding: 40,
@@ -193,7 +219,6 @@ const pdfStyles = StyleSheet.create({
 const ResultPDF = ({ result }: { result: ResultData }) => (
   <Document>
     <Page size="A4" style={pdfStyles.page}>
-      {/* Header */}
       <View style={pdfStyles.header}>
         <View>
           <Text style={pdfStyles.headerTitle}>Result Card</Text>
@@ -206,13 +231,11 @@ const ResultPDF = ({ result }: { result: ResultData }) => (
         </View>
       </View>
 
-      {/* Roll Number */}
       <View style={pdfStyles.rollNumberBox}>
         <Text style={pdfStyles.rollNumberLabel}>Roll Number</Text>
         <Text style={pdfStyles.rollNumberValue}>{result.rollNumber}</Text>
       </View>
 
-      {/* Student Info */}
       <View style={pdfStyles.section}>
         <Text style={pdfStyles.sectionTitle}>Student Details</Text>
         <View style={pdfStyles.infoRow}>
@@ -235,7 +258,6 @@ const ResultPDF = ({ result }: { result: ResultData }) => (
         </View>
       </View>
 
-      {/* Stats */}
       <View style={pdfStyles.section}>
         <Text style={pdfStyles.sectionTitle}>Performance</Text>
         <View style={pdfStyles.statsGrid}>
@@ -254,7 +276,6 @@ const ResultPDF = ({ result }: { result: ResultData }) => (
         </View>
       </View>
 
-      {/* Status */}
       <View style={pdfStyles.statusRow}>
         <View>
           {result.cheating ? (
@@ -276,14 +297,12 @@ const ResultPDF = ({ result }: { result: ResultData }) => (
         </Text>
       </View>
 
-      {/* Footer */}
       <View style={pdfStyles.footer}>
         <Text style={pdfStyles.footerText}>
           This is a computer-generated document. No signature is required.
         </Text>
       </View>
 
-      {/* Watermark */}
       <Text style={pdfStyles.watermark}>OFFICIAL</Text>
     </Page>
   </Document>
@@ -309,7 +328,7 @@ export function ResultSearchForm() {
       formData.append("email", email);
 
       const data = await searchStudentResult(formData);
-      
+
       if (data.success && data.result) {
         const transformedResult: ResultData = {
           id: data.result.id,
@@ -323,6 +342,7 @@ export function ResultSearchForm() {
           cheating: data.result.cheating,
           submittedAt: data.result.submittedAt || new Date(),
           rank: data.result.rank || undefined,
+          registrationData: data.result.registrationData as any,
         };
         setResult(transformedResult);
       } else {
@@ -365,7 +385,7 @@ export function ResultSearchForm() {
                 disabled={loading}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                 <Mail className="h-4 w-4 text-purple-500" />
@@ -382,7 +402,7 @@ export function ResultSearchForm() {
                 disabled={loading}
               />
             </div>
-            
+
             <Button
               type="submit"
               disabled={loading}
@@ -401,7 +421,7 @@ export function ResultSearchForm() {
               )}
             </Button>
           </form>
-          
+
           {error && (
             <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-center flex items-center justify-center gap-2">
               <AlertCircle className="h-5 w-5 shrink-0" />
@@ -409,8 +429,17 @@ export function ResultSearchForm() {
             </div>
           )}
         </CardContent>
+
+        <div className="bg-gray-50 dark:bg-gray-800/30 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            This is a computer-generated document. No signature is required.
+          </p>
+        </div>
+
+        {/* OFFER LETTER */}
+        <InternshipOfferLetterDownload result={result!} />
       </Card>
-      
+
       {/* Result Card */}
       {result && (
         <div ref={resultRef} className="mt-8">
@@ -463,7 +492,7 @@ export function ResultSearchForm() {
                 </div>
               </div>
             </div>
-            
+
             <CardContent className="p-6">
               {/* Student Info Grid */}
               <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -505,7 +534,7 @@ export function ResultSearchForm() {
                   </p>
                 </div>
               </div>
-              
+
               {/* Stats Grid */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
                 <div className="grid md:grid-cols-3 gap-4">
@@ -532,7 +561,7 @@ export function ResultSearchForm() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Status */}
               <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
@@ -558,7 +587,7 @@ export function ResultSearchForm() {
                 </div>
               </div>
             </CardContent>
-            
+
             {/* Footer */}
             <div className="bg-gray-50 dark:bg-gray-800/30 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-400 dark:text-gray-500 text-center">

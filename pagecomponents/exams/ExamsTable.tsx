@@ -358,7 +358,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       </div>
 
       <EditExamDialog
-        exam={editingExam}
+        exam={editingExam as any}
         open={!!editingExam}
         onOpenChange={(open) => !open && setEditingExam(null)}
         onExamUpdated={(updatedExam) => {

@@ -1,3 +1,4 @@
+// actions/public-registration.ts
 "use server";
 
 import { db } from "@/db";
@@ -10,9 +11,35 @@ const registrationSchema = z.object({
   email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone number is required"),
   dob: z.string().min(1, "Date of birth is required"),
+  gender: z.string().optional(),
 
-  // NEW: Domain
+  // Domain
   domain: z.string().min(1, "Domain is required"),
+
+  // Education Details
+  universityName: z.string().min(1, "University name is required"),
+  collegeName: z.string().min(1, "College name is required"),
+  course: z.string().min(1, "Course is required"),
+  branch: z.string().min(1, "Branch is required"),
+  semester: z.string().min(1, "Semester is required"),
+  enrollmentNumber: z.string().min(1, "Enrollment number is required"),
+  graduationYear: z.string().min(1, "Graduation year is required"),
+
+  // Address Details
+  address: z.string().min(1, "Address is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  country: z.string().min(1, "Country is required"),
+  pincode: z.string().min(1, "Pincode is required"),
+
+  // Preferences
+  preferredStartDate: z.string().optional(),
+  preferredDuration: z.string().optional(),
+
+  // Emergency Contact
+  emergencyContactName: z.string().min(1, "Emergency contact name is required"),
+  emergencyContactPhone: z.string().min(1, "Emergency contact phone is required"),
+  emergencyContactRelation: z.string().min(1, "Emergency contact relation is required"),
 
   examId: z.coerce.number(),
 });
@@ -60,9 +87,34 @@ export async function registerForExam(formData: FormData) {
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
       dob: formData.get("dob") as string,
+      gender: formData.get("gender") as string,
 
-      // NEW: Get domain from form
       domain: formData.get("domain") as string,
+
+      // Education Details
+      universityName: formData.get("universityName") as string,
+      collegeName: formData.get("collegeName") as string,
+      course: formData.get("course") as string,
+      branch: formData.get("branch") as string,
+      semester: formData.get("semester") as string,
+      enrollmentNumber: formData.get("enrollmentNumber") as string,
+      graduationYear: formData.get("graduationYear") as string,
+
+      // Address Details
+      address: formData.get("address") as string,
+      city: formData.get("city") as string,
+      state: formData.get("state") as string,
+      country: formData.get("country") as string,
+      pincode: formData.get("pincode") as string,
+
+      // Preferences
+      preferredStartDate: formData.get("preferredStartDate") as string,
+      preferredDuration: formData.get("preferredDuration") as string,
+
+      // Emergency Contact
+      emergencyContactName: formData.get("emergencyContactName") as string,
+      emergencyContactPhone: formData.get("emergencyContactPhone") as string,
+      emergencyContactRelation: formData.get("emergencyContactRelation") as string,
 
       examId: formData.get("examId") as string,
     };
@@ -124,78 +176,32 @@ export async function registerForExam(formData: FormData) {
 
     let studentId: number;
 
-    let studentData = {
-      name: validated.name,
-      email: validated.email,
-      phone: validated.phone,
-      dob: validated.dob,
-    };
-
     if (student.length > 0) {
       studentId = student[0].id;
 
-      // Check if any details are missing and update them
+      // Update student details if missing
       const existingStudent = student[0];
+      const updateData: any = {};
       let needsUpdate = false;
-
-      // Prepare update object with only missing fields
-      const updateData: {
-        name?: string;
-        email?: string;
-        phone?: string;
-        dob?: string;
-      } = {};
 
       if (!existingStudent.name && validated.name) {
         updateData.name = validated.name;
         needsUpdate = true;
       }
-
-      if (!existingStudent.email && validated.email) {
-        updateData.email = validated.email;
-        needsUpdate = true;
-      }
-
       if (!existingStudent.phone && validated.phone) {
         updateData.phone = validated.phone;
         needsUpdate = true;
       }
-
       if (!existingStudent.dob && validated.dob) {
         updateData.dob = validated.dob;
         needsUpdate = true;
       }
 
-      // Update student if any fields are missing
       if (needsUpdate) {
         await db
           .update(students)
           .set(updateData)
           .where(eq(students.id, studentId));
-
-        // Refresh student data after update
-        const [updatedStudent] = await db
-          .select()
-          .from(students)
-          .where(eq(students.id, studentId))
-          .limit(1);
-
-        if (updatedStudent) {
-          studentData = {
-            name: updatedStudent.name || validated.name,
-            email: updatedStudent.email || validated.email,
-            phone: updatedStudent.phone || validated.phone,
-            dob: updatedStudent.dob || validated.dob,
-          };
-        }
-      } else {
-        // Use existing student data
-        studentData = {
-          name: existingStudent.name || validated.name,
-          email: existingStudent.email || validated.email,
-          phone: existingStudent.phone || validated.phone,
-          dob: existingStudent.dob || validated.dob,
-        };
       }
     } else {
       // Create new student
@@ -234,19 +240,17 @@ export async function registerForExam(formData: FormData) {
 
     if (existingRegistration.length > 0) {
       const reg = existingRegistration[0];
-
       return {
         success: true,
         registrationId: reg.id,
         rollNumber: reg.rollNumber,
-        domain: reg.domain, // NEW
+        domain: reg.domain,
         alreadyRegistered: true,
       };
     }
 
     // Generate unique roll number
     const year = new Date().getFullYear().toString();
-
     let rollNumber = `${studentId}${company.rollPrefix}${year}`;
 
     if (company.rollInfix) {
@@ -273,20 +277,49 @@ export async function registerForExam(formData: FormData) {
       }
     }
 
-    // Create registration
+    // Create registration with ALL details
     const [registration] = await db
       .insert(examRegistrations)
       .values({
         examId: validated.examId,
         studentId: studentId,
-
-        // NEW: Save domain with application
-        domain: validated.domain,
-
         rollNumber: finalRollNumber,
         status: "not_started",
         cheating: false,
         score: 0,
+
+        // Domain
+        domain: validated.domain,
+
+        // Personal Details
+        gender: validated.gender || null,
+
+        // Education Details
+        universityName: validated.universityName,
+        collegeName: validated.collegeName,
+        course: validated.course,
+        branch: validated.branch,
+        semester: validated.semester,
+        enrollmentNumber: validated.enrollmentNumber,
+        graduationYear: validated.graduationYear
+          ? parseInt(validated.graduationYear)
+          : null,
+
+        // Address Details
+        address: validated.address,
+        city: validated.city,
+        state: validated.state,
+        country: validated.country || "India",
+        pincode: validated.pincode,
+
+        // Preferences
+        preferredStartDate: validated.preferredStartDate || null,
+        preferredDuration: validated.preferredDuration || null,
+
+        // Emergency Contact
+        emergencyContactName: validated.emergencyContactName,
+        emergencyContactPhone: validated.emergencyContactPhone,
+        emergencyContactRelation: validated.emergencyContactRelation,
       })
       .returning();
 
@@ -301,7 +334,7 @@ export async function registerForExam(formData: FormData) {
       success: true,
       registrationId: registration.id,
       rollNumber: registration.rollNumber,
-      domain: registration.domain, // NEW
+      domain: registration.domain,
       alreadyRegistered: false,
     };
   } catch (error) {
@@ -324,22 +357,52 @@ export async function registerForExam(formData: FormData) {
 export type RegistrationDetails = {
   id: number;
   rollNumber: string | null;
-
-  // NEW
   domain: string | null;
 
+  // Exam Details
   examName: string | null;
   examDate: Date | null;
   durationMinutes: number | null;
   totalMarks: number | null;
   companyName: string | null;
+  syllabusPdf: string | null;
+
+  // Student Details
   studentName: string | null;
   studentEmail: string | null;
   studentPhone: string | null;
   studentDob: string | null;
+
+  // NEW: Education Details
+  universityName: string | null;
+  collegeName: string | null;
+  course: string | null;
+  branch: string | null;
+  semester: string | null;
+  enrollmentNumber: string | null;
+  graduationYear: number | null;
+
+  // NEW: Address Details
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  pincode: string | null;
+
+  // NEW: Personal Details
+  gender: string | null;
+
+  // NEW: Preferences
+  preferredStartDate: string | null;
+  preferredDuration: string | null;
+
+  // NEW: Emergency Contact
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRelation: string | null;
+
   status: string | null;
   createdAt: Date | null;
-  syllabusPdf: string | null;
 };
 
 export async function getRegistrationDetails(
@@ -350,22 +413,53 @@ export async function getRegistrationDetails(
       .select({
         id: examRegistrations.id,
         rollNumber: examRegistrations.rollNumber,
-
-        // NEW: Fetch domain
         domain: examRegistrations.domain,
-
         status: examRegistrations.status,
         createdAt: examRegistrations.startedAt,
+
+        // Exam Details
         examName: exams.name,
         examDate: exams.examDate,
         durationMinutes: exams.durationMinutes,
         totalMarks: exams.totalMarks,
-        companyName: companies.name,
+        syllabusPdf: exams.syllabusPdf,
+
+        // Student Details
         studentName: students.name,
         studentEmail: students.email,
         studentPhone: students.phone,
         studentDob: students.dob,
-        syllabusPdf: exams.syllabusPdf,
+
+        // NEW: Education Details
+        universityName: examRegistrations.universityName,
+        collegeName: examRegistrations.collegeName,
+        course: examRegistrations.course,
+        branch: examRegistrations.branch,
+        semester: examRegistrations.semester,
+        enrollmentNumber: examRegistrations.enrollmentNumber,
+        graduationYear: examRegistrations.graduationYear,
+
+        // NEW: Address Details
+        address: examRegistrations.address,
+        city: examRegistrations.city,
+        state: examRegistrations.state,
+        country: examRegistrations.country,
+        pincode: examRegistrations.pincode,
+
+        // NEW: Personal Details
+        gender: examRegistrations.gender,
+
+        // NEW: Preferences
+        preferredStartDate: examRegistrations.preferredStartDate,
+        preferredDuration: examRegistrations.preferredDuration,
+
+        // NEW: Emergency Contact
+        emergencyContactName: examRegistrations.emergencyContactName,
+        emergencyContactPhone: examRegistrations.emergencyContactPhone,
+        emergencyContactRelation: examRegistrations.emergencyContactRelation,
+
+        // Company Details
+        companyName: companies.name,
       })
       .from(examRegistrations)
       .leftJoin(exams, eq(examRegistrations.examId, exams.id))

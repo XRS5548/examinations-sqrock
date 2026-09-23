@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 
 interface PageProps {
   params: Promise<{ exam_id: string }>;
@@ -34,7 +33,7 @@ export default async function AssignStudentsPage({ params }: PageProps) {
     );
   }
 
-  // Fetch exam details
+  // Fetch exam
   const examList = await db.select()
     .from(exams)
     .where(eq(exams.id, examId))
@@ -52,14 +51,16 @@ export default async function AssignStudentsPage({ params }: PageProps) {
     .where(eq(students.companyId, company.id))
     .orderBy(students.createdAt);
 
-  // Fetch already assigned students
+  // Fetch assigned registrations - THIS NOW RETURNS ALL FIELDS
   const assignedRegistrationsRaw = await db.select()
     .from(examRegistrations)
     .where(eq(examRegistrations.examId, examId));
 
-  const assignedStudentIds = assignedRegistrationsRaw.map(reg => reg.studentId).filter((id): id is number => id !== null);
+  const assignedStudentIds = assignedRegistrationsRaw
+    .map((reg) => reg.studentId)
+    .filter((id): id is number => id !== null);
 
-  // Fetch assigned student details using inArray
+  // Fetch assigned student details
   let assignedStudents: any[] = [];
   if (assignedStudentIds.length > 0) {
     assignedStudents = await db.select()
@@ -67,25 +68,59 @@ export default async function AssignStudentsPage({ params }: PageProps) {
       .where(inArray(students.id, assignedStudentIds));
   }
 
-  // Transform assigned registrations to match expected types
-  const assignedRegistrations = assignedRegistrationsRaw.map(reg => ({
-    id: reg.id,
-    examId: reg.examId ?? 0,
-    studentId: reg.studentId ?? 0,
-    rollNumber: reg.rollNumber,
-    domain: reg.domain, // ✅ ADD THIS
-    score: reg.score ?? 0,
-    cheating: reg.cheating ?? false,
-    status: reg.status,
-    startedAt: reg.startedAt,
-    submittedAt: reg.submittedAt,
-    student: assignedStudents.find(s => s.id === reg.studentId),
-  }));
+  // =====================================================
+  // ✅ TRANSFORM WITH ALL FIELDS
+  // =====================================================
+  const assignedRegistrations = assignedRegistrationsRaw.map((reg) => {
+    const studentData = assignedStudents.find((s) => s.id === reg.studentId);
+    return {
+      id: reg.id,
+      examId: reg.examId ?? 0,
+      studentId: reg.studentId ?? 0,
+      rollNumber: reg.rollNumber,
+      domain: reg.domain,
+      score: reg.score ?? 0,
+      cheating: reg.cheating ?? false,
+      status: reg.status,
+      startedAt: reg.startedAt,
+      submittedAt: reg.submittedAt,
 
-  // Available students (not assigned) - transform dob from string to Date
+      // ✅ NEW: All the extra fields
+      gender: reg.gender,
+      universityName: reg.universityName,
+      collegeName: reg.collegeName,
+      course: reg.course,
+      branch: reg.branch,
+      semester: reg.semester,
+      enrollmentNumber: reg.enrollmentNumber,
+      graduationYear: reg.graduationYear,
+      address: reg.address,
+      city: reg.city,
+      state: reg.state,
+      country: reg.country,
+      pincode: reg.pincode,
+      preferredStartDate: reg.preferredStartDate,
+      preferredDuration: reg.preferredDuration,
+      emergencyContactName: reg.emergencyContactName,
+      emergencyContactPhone: reg.emergencyContactPhone,
+      emergencyContactRelation: reg.emergencyContactRelation,
+
+      student: studentData
+        ? {
+            id: studentData.id,
+            name: studentData.name,
+            email: studentData.email,
+            phone: studentData.phone,
+            dob: studentData.dob,
+          }
+        : null,
+    };
+  });
+
+  // Available students (not assigned)
   const availableStudents = allStudents
-    .filter(s => !assignedStudentIds.includes(s.id))
-    .map(student => ({
+    .filter((s) => !assignedStudentIds.includes(s.id))
+    .map((student) => ({
       id: student.id,
       name: student.name,
       email: student.email,
@@ -104,7 +139,9 @@ export default async function AssignStudentsPage({ params }: PageProps) {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Assign Students to Exam</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Assign Students to Exam
+          </h1>
           <p className="text-muted-foreground mt-2">
             {exam.name} • {assignedRegistrations.length} students assigned
           </p>
@@ -113,46 +150,29 @@ export default async function AssignStudentsPage({ params }: PageProps) {
 
       <div className="space-y-4">
         <Tabs defaultValue="available" className="w-full">
-
-          {/* Tabs */}
           <div className="px-1">
-            <TabsList className="grid w-full grid-cols-2  ">
-              <TabsTrigger
-                value="available"
-                className=""
-              >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="available">
                 Available Students ({availableStudents.length})
               </TabsTrigger>
-
-              <TabsTrigger
-                value="assigned"
-                className=""
-              >
+              <TabsTrigger value="assigned">
                 Assigned Students ({assignedRegistrations.length})
               </TabsTrigger>
             </TabsList>
           </div>
 
-          {/* AVAILABLE */}
           <TabsContent value="available" className="mt-5">
             <div className="rounded-xl border bg-card overflow-hidden">
-
               <div className="px-6 py-5 border-b">
-                <h2 className="text-xl font-semibold">
-                  Available Students
-                </h2>
-
+                <h2 className="text-xl font-semibold">Available Students</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Select students to assign them to this exam.
                 </p>
               </div>
-
               <div className="p-4">
                 <Suspense
                   fallback={
-                    <div className="text-center py-12">
-                      Loading students...
-                    </div>
+                    <div className="text-center py-12">Loading students...</div>
                   }
                 >
                   <StudentsSelectionTable
@@ -163,30 +183,21 @@ export default async function AssignStudentsPage({ params }: PageProps) {
                   />
                 </Suspense>
               </div>
-
             </div>
           </TabsContent>
 
-          {/* ASSIGNED */}
           <TabsContent value="assigned" className="mt-5">
             <div className="rounded-xl border bg-card overflow-hidden">
-
               <div className="px-6 py-5 border-b">
-                <h2 className="text-xl font-semibold">
-                  Assigned Students
-                </h2>
-
+                <h2 className="text-xl font-semibold">Assigned Students</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Students currently assigned to this exam.
                 </p>
               </div>
-
               <div className="p-4">
                 <Suspense
                   fallback={
-                    <div className="text-center py-12">
-                      Loading assignments...
-                    </div>
+                    <div className="text-center py-12">Loading assignments...</div>
                   }
                 >
                   <AssignedStudentsTable
@@ -195,10 +206,8 @@ export default async function AssignStudentsPage({ params }: PageProps) {
                   />
                 </Suspense>
               </div>
-
             </div>
           </TabsContent>
-
         </Tabs>
       </div>
     </div>
