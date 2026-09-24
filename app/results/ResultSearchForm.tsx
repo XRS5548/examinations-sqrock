@@ -6,9 +6,9 @@ import {
   Award,
   Calendar,
   CheckCircle,
+  Download,
   Loader2,
   Mail,
-  Printer,
   Search,
   TrendingUp,
   User,
@@ -64,6 +64,7 @@ export function ResultSearchForm({
   const [rollNumber, setRollNumber] = useState(initialRollNumber);
   const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [result, setResult] = useState<PublicResultData | null>(initialResult);
   const [error, setError] = useState(initialError);
 
@@ -110,6 +111,43 @@ export function ResultSearchForm({
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadResult = async () => {
+    if (!result || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      const response = await fetch("/api/results/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rollNumber: result.rollNumber,
+          email: result.studentEmail,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to download result");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `Result-${result.rollNumber}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(anchor);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to download result"
+      );
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -223,12 +261,17 @@ export function ResultSearchForm({
                   </p>
                 </div>
                 <Button
-                  onClick={() => window.print()}
+                  onClick={handleDownloadResult}
+                  disabled={isDownloading}
                   variant="secondary"
-                  className="bg-white/20 text-white hover:bg-white/30 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-gray-700"
+                  className="bg-white text-red-700 hover:bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-gray-700"
                 >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print
+                  {isDownloading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  {isDownloading ? "Generating PDF..." : "Download PDF"}
                 </Button>
               </div>
             </div>
