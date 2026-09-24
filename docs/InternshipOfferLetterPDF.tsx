@@ -1,5 +1,6 @@
 // components/pdf/InternshipOfferLetterPDF.tsx
 
+import React from "react";
 import {
   Document,
   Page,
@@ -8,18 +9,7 @@ import {
   StyleSheet,
   Image,
   Link,
-  Font,
 } from "@react-pdf/renderer";
-
-// Font.register({
-//   family: "Helvetica",
-//   fonts: [
-//     {
-//       src: "https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2",
-//       fontWeight: "normal",
-//     },
-//   ],
-// });
 
 export type InternshipMode = "remote" | "hybrid" | "onsite";
 export type PaymentFrequency = "monthly" | "weekly" | "one-time";
@@ -198,214 +188,357 @@ interface InternshipOfferLetterPDFProps {
   data: InternshipOfferLetterData;
 }
 
+/*
+ * Layout intentionally follows the uploaded reference PDF:
+ * - compact A4 single-page composition
+ * - thin red header rule
+ * - two-column information cards
+ * - compact date summary row
+ * - two-column lower content
+ * - acceptance bar
+ * - three-part signature area
+ *
+ * IMPORTANT:
+ * The data interface above is unchanged. Optional fields are simply hidden
+ * when they are not provided, so callers do not need to be changed.
+ */
+
+const RED = "#9B3F3F";
+const DARK = "#1F2937";
+const MUTED = "#6B7280";
+const BORDER = "#D7D9DC";
+const CARD_BG = "#F8F9FA";
+
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 35,
-    paddingBottom: 40,
-    paddingHorizontal: 42,
-    fontSize: 9.5,
+    paddingTop: 22,
+    paddingBottom: 34,
+    paddingHorizontal: 34,
+    fontSize: 6.8,
     fontFamily: "Helvetica",
-    lineHeight: 1.45,
-    color: "#111827",
+    color: DARK,
   },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 18,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D1D5DB",
+    paddingBottom: 9,
+    borderBottomWidth: 1.1,
+    borderBottomColor: RED,
+  },
+
+  brandBlock: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    flex: 1,
   },
 
   logo: {
-    width: 80,
-    // height: 45,
+    width: 84,
+    height: 30,
     objectFit: "contain",
+    marginRight: 7,
   },
 
   companyInfo: {
     flex: 1,
-    marginLeft: 14,
   },
 
   companyName: {
-    fontSize: 16,
+    fontSize: 12.5,
     fontFamily: "Helvetica-Bold",
+    color: "#263142",
     marginBottom: 3,
   },
 
   companyMeta: {
-    fontSize: 8,
-    color: "#4B5563",
+    fontSize: 6.1,
+    color: MUTED,
+    marginBottom: 1.5,
+  },
+
+  website: {
+    fontSize: 6.1,
+    color: "#3568A8",
+    textDecoration: "none",
   },
 
   letterMeta: {
-    width: 165,
+    width: 150,
     alignItems: "flex-end",
   },
 
   metaText: {
-    fontSize: 8.5,
-    marginBottom: 2,
+    fontSize: 6.6,
+    color: RED,
+    marginBottom: 3,
+    textAlign: "right",
   },
 
   title: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 18,
+    fontSize: 15.5,
     textAlign: "center",
-    marginTop: 5,
-    marginBottom: 18,
+    color: "#273244",
+    marginTop: 10,
+    marginBottom: 8,
     textTransform: "uppercase",
+    letterSpacing: 1.1,
   },
 
-  greeting: {
-    marginBottom: 10,
-  },
-
-  paragraph: {
+  intro: {
     marginBottom: 9,
-    textAlign: "justify",
+    fontSize: 7.4,
+    color: "#303844",
   },
 
   bold: {
     fontFamily: "Helvetica-Bold",
   },
 
-  section: {
-    marginTop: 11,
-    marginBottom: 5,
+  topGrid: {
+    flexDirection: "row",
+    gap: 9,
+    alignItems: "flex-start",
   },
 
-  sectionTitle: {
+  topColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  card: {
+    borderWidth: 0.65,
+    borderColor: BORDER,
+    borderRadius: 3,
+    padding: 7,
+    marginBottom: 3,
+    backgroundColor: CARD_BG,
+  },
+
+  cardTitle: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 11,
-    marginBottom: 6,
-    paddingBottom: 3,
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#D1D5DB",
-  },
-
-  table: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    marginBottom: 8,
+    fontSize: 9,
+    color: RED,
+    paddingBottom: 4,
+    marginBottom: 3,
+    borderBottomWidth: 0.55,
+    borderBottomColor: "#E1E2E5",
   },
 
   row: {
     flexDirection: "row",
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#E5E7EB",
+    marginBottom: 2.5,
+    minHeight: 7,
   },
 
-  lastRow: {
-    flexDirection: "row",
-  },
-
-  labelCell: {
-    width: "34%",
-    backgroundColor: "#F3F4F6",
-    paddingVertical: 5,
-    paddingHorizontal: 6,
+  rowLabel: {
+    width: "35%",
     fontFamily: "Helvetica-Bold",
+    color: "#667085",
+    fontSize: 6.8,
   },
 
-  valueCell: {
-    width: "66%",
-    paddingVertical: 5,
-    paddingHorizontal: 6,
+  rowValue: {
+    width: "65%",
+    color: "#28313D",
+    fontSize: 6.8,
+  },
+
+  dateGrid: {
+    flexDirection: "row",
+    gap: 9,
+    marginTop: 1,
+    marginBottom: 3,
+  },
+
+  dateCard: {
+    flex: 1,
+    borderWidth: 0.65,
+    borderColor: BORDER,
+    borderRadius: 2.5,
+    paddingVertical: 5.5,
+    paddingHorizontal: 5,
+  },
+
+  dateValue: {
+    fontSize: 8.1,
+    fontFamily: "Helvetica-Bold",
+    color: "#263142",
+    marginBottom: 1,
+  },
+
+  dateLabel: {
+    fontSize: 6.1,
+    color: MUTED,
+    textTransform: "uppercase",
+  },
+
+  lowerGrid: {
+    flexDirection: "row",
+    gap: 18,
+    alignItems: "flex-start",
+  },
+
+  lowerColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  section: {
+    marginBottom: 7,
+  },
+
+  sectionTitle: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 8.1,
+    color: RED,
+    marginBottom: 3,
   },
 
   listItem: {
     flexDirection: "row",
-    marginBottom: 4,
+    marginBottom: 2.2,
   },
 
   bullet: {
-    width: 12,
+    width: 8,
+    color: RED,
+    fontSize: 6.6,
   },
 
   listText: {
     flex: 1,
+    fontSize: 6.8,
+    color: "#303844",
   },
 
-  workingDaysContainer: {
+  compactText: {
+    fontSize: 6.8,
+    color: "#303844",
+    marginBottom: 2.5,
+  },
+
+  acceptanceBox: {
+    marginTop: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderWidth: 0.65,
+    borderColor: BORDER,
+    borderRadius: 3,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
-  workingDay: {
-    paddingVertical: 3,
-    paddingHorizontal: 5,
-    borderWidth: 0.7,
-    borderColor: "#D1D5DB",
-    borderRadius: 2,
-    marginRight: 3,
+  acceptanceText: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  acceptanceTitle: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 7.4,
     marginBottom: 3,
-    fontSize: 7.5,
+    color: "#303844",
   },
 
-  activeDay: {
-    backgroundColor: "#E5E7EB",
+  acceptanceBody: {
+    fontSize: 6.6,
+    color: "#3D4652",
+  },
+
+  validBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "#D9F7E3",
+  },
+
+  validBadgeText: {
+    fontSize: 6.2,
+    fontFamily: "Helvetica-Bold",
+    color: "#28754A",
   },
 
   signatureSection: {
-    marginTop: 24,
+    marginTop: 13,
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
   },
 
   signatureBlock: {
-    width: "44%",
+    width: "31%",
+  },
+
+  signatureCenter: {
+    width: "18%",
+    alignItems: "center",
   },
 
   signatureImage: {
-    width: 100,
-    height: 40,
+    width: 82,
+    height: 28,
     objectFit: "contain",
-    marginBottom: 4,
+    marginBottom: 3,
   },
 
   signatureLine: {
-    borderTopWidth: 0.8,
+    borderTopWidth: 0.75,
     borderTopColor: "#6B7280",
-    marginTop: 30,
+    marginTop: 22,
     paddingTop: 4,
   },
 
-  stamp: {
-    width: 65,
-    height: 65,
-    objectFit: "contain",
-    marginTop: 5,
+  signatureName: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 6.7,
+    marginBottom: 1,
   },
 
-  acceptanceBox: {
-    marginTop: 20,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
+  signatureMeta: {
+    fontSize: 6.2,
+    color: "#3D4652",
+    marginBottom: 1,
+  },
+
+  stamp: {
+    width: 82,
+    height: 82,
+    objectFit: "contain",
+  },
+
+  hrSection: {
+    marginTop: 6,
+    marginBottom: 3,
   },
 
   footer: {
     position: "absolute",
-    bottom: 15,
-    left: 42,
-    right: 42,
-    fontSize: 7,
-    color: "#6B7280",
-    borderTopWidth: 0.6,
-    borderTopColor: "#D1D5DB",
-    paddingTop: 5,
+    bottom: 12,
+    left: 34,
+    right: 34,
+    fontSize: 6.1,
+    color: "#7A7F87",
+    borderTopWidth: 0.5,
+    borderTopColor: "#D8DADD",
+    paddingTop: 4,
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 8,
   },
 
-  link: {
-    color: "#2563EB",
-    textDecoration: "none",
+  footerText: {
+    flex: 1,
+    maxLines: 1,
+    textOverflow: "ellipsis",
+  },
+
+  footerPageText: {
+    flex: 1,
+    maxLines: 1,
+    textAlign: "right",
   },
 });
 
@@ -432,27 +565,48 @@ const formatCurrency = (
   return `${currency} ${value.toLocaleString()}`;
 };
 
+const displayMode = (mode: InternshipMode) => mode.toUpperCase();
+
 const InfoRow = ({
   label,
   value,
-  last = false,
 }: {
   label: string;
   value?: React.ReactNode;
-  last?: boolean;
-}) => (
-  <View style={last ? styles.lastRow : styles.row}>
-    <View style={styles.labelCell}>
-      <Text>{label}</Text>
-    </View>
+}) => {
+  if (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (typeof value === "number" && Number.isNaN(value))
+  ) {
+    return null;
+  }
 
-    <View style={styles.valueCell}>
-      {typeof value === "string" || typeof value === "number" ? (
-        <Text>{value || "N/A"}</Text>
-      ) : (
-        value || <Text>N/A</Text>
-      )}
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowValue}>
+        {typeof value === "string" || typeof value === "number" ? (
+          <Text>{value}</Text>
+        ) : (
+          value
+        )}
+      </View>
     </View>
+  );
+};
+
+const Card = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <View style={styles.card}>
+    <Text style={styles.cardTitle}>{title}</Text>
+    {children}
   </View>
 );
 
@@ -471,11 +625,21 @@ const BulletList = ({ items }: { items?: string[] }) => {
   );
 };
 
+const WorkingDaysText = ({ days }: { days: WorkingDays }) => {
+  const active = (Object.keys(days) as Array<keyof WorkingDays>)
+    .filter((day) => days[day])
+    .map((day) => dayLabels[day].toUpperCase());
+
+  return <Text>{active.length ? active.join(", ") : "N/A"}</Text>;
+};
+
 export default function InternshipOfferLetterPDF({
   data,
 }: InternshipOfferLetterPDFProps) {
   const compensation =
     data.salary !== undefined ? data.salary : data.stipend;
+
+  const hasHR = Boolean(data.hrName || data.hrEmail || data.hrPhone);
 
   return (
     <Document
@@ -485,62 +649,37 @@ export default function InternshipOfferLetterPDF({
       keywords="internship, offer letter"
     >
       <Page size="A4" style={styles.page}>
-        {/* ================= COMPANY HEADER ================= */}
-
+        {/* ================= HEADER ================= */}
         <View style={styles.header}>
-          {data.companyLogo && (
-            <Image src={data.companyLogo} style={styles.logo} />
-          )}
+          <View style={styles.brandBlock}>
+            {data.companyLogo && (
+              <Image src={data.companyLogo} style={styles.logo} />
+            )}
 
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{data.companyName}</Text>
+            <View style={styles.companyInfo}>
+              <Text style={styles.companyName}>{data.companyName}</Text>
 
-            <Text style={styles.companyMeta}>{data.companyAddress}</Text>
+              {data.companyWebsite && (
+                <Link src={data.companyWebsite} style={styles.website}>
+                  {data.companyWebsite}
+                </Link>
+              )}
 
-            {(data.companyCity ||
-              data.companyState ||
-              data.companyCountry ||
-              data.companyPostalCode) && (
               <Text style={styles.companyMeta}>
-                {[
-                  data.companyCity,
-                  data.companyState,
-                  data.companyCountry,
-                  data.companyPostalCode,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
+                {data.companyEmail || ""}
+                {data.companyEmail && data.companyPhone ? " | " : ""}
+                {data.companyPhone || ""}
               </Text>
-            )}
-
-            {data.companyEmail && (
-              <Text style={styles.companyMeta}>
-                Email: {data.companyEmail}
-              </Text>
-            )}
-
-            {data.companyPhone && (
-              <Text style={styles.companyMeta}>
-                Phone: {data.companyPhone}
-              </Text>
-            )}
-
-            {data.companyWebsite && (
-              <Link src={data.companyWebsite} style={styles.link}>
-                {data.companyWebsite}
-              </Link>
-            )}
+            </View>
           </View>
 
           <View style={styles.letterMeta}>
             <Text style={styles.metaText}>
               Offer ID: {data.offerLetterId}
             </Text>
-
             <Text style={styles.metaText}>
-              Issue Date: {data.issueDate}
+              Issued: {data.issueDate}
             </Text>
-
             {data.validUntil && (
               <Text style={styles.metaText}>
                 Valid Until: {data.validUntil}
@@ -551,485 +690,340 @@ export default function InternshipOfferLetterPDF({
 
         <Text style={styles.title}>Internship Offer Letter</Text>
 
-        {/* ================= RECIPIENT ================= */}
-
-        <Text style={styles.greeting}>
-          Dear <Text style={styles.bold}>{data.name}</Text>,
+        <Text style={styles.intro}>
+          Dear <Text style={styles.bold}>{data.name}</Text>, we are pleased to
+          offer you the <Text style={styles.bold}>{data.designation}</Text>{" "}
+          internship with{" "}
+          <Text style={styles.bold}>{data.companyName}</Text>
+          {data.department ? ` in the ${data.department} department` : ""}.
+          This letter confirms the appointment, schedule and principal terms
+          of the internship.
         </Text>
 
-        <Text style={styles.paragraph}>
-          We are pleased to offer you an internship opportunity with{" "}
-          <Text style={styles.bold}>{data.companyName}</Text> for the position
-          of <Text style={styles.bold}>{data.designation}</Text>
-          {data.department
-            ? ` in the ${data.department} department`
-            : ""}
-          . Your internship will be governed by the terms and conditions
-          mentioned in this offer letter.
-        </Text>
+        {/* ================= TOP INFORMATION CARDS ================= */}
+        <View style={styles.topGrid}>
+          <View style={styles.topColumn}>
+            <Card title="Candidate Details">
+              <InfoRow label="Name" value={data.name} />
+              <InfoRow label="Email" value={data.employeeEmail} />
+              <InfoRow label="Phone" value={data.phone} />
 
-        {/* ================= INTERN DETAILS ================= */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Intern Details</Text>
-
-          <View style={styles.table}>
-            <InfoRow label="Full Name" value={data.name} />
-
-            <InfoRow
-              label="Email Address"
-              value={data.employeeEmail}
-            />
-
-            {data.phone && (
-              <InfoRow label="Phone Number" value={data.phone} />
-            )}
-
-            {data.collegeName && (
-              <InfoRow label="College" value={data.collegeName} />
-            )}
-
-            {data.universityName && (
-              <InfoRow
-                label="University"
-                value={data.universityName}
-              />
-            )}
-
-            {data.course && (
-              <InfoRow label="Course" value={data.course} />
-            )}
-
-            {data.branch && (
-              <InfoRow label="Branch" value={data.branch} />
-            )}
-
-            {data.enrollmentNumber && (
-              <InfoRow
-                label="Enrollment Number"
-                value={data.enrollmentNumber}
-                last
-              />
-            )}
-          </View>
-        </View>
-
-        {/* ================= INTERNSHIP DETAILS ================= */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Internship Details</Text>
-
-          <View style={styles.table}>
-            <InfoRow
-              label="Designation"
-              value={data.designation}
-            />
-
-            {data.department && (
-              <InfoRow label="Department" value={data.department} />
-            )}
-
-            {data.internshipType && (
-              <InfoRow
-                label="Internship Type"
-                value={data.internshipType}
-              />
-            )}
-
-            <InfoRow
-              label="Work Mode"
-              value={data.mode.toUpperCase()}
-            />
-
-            {data.internshipLocation && (
-              <InfoRow
-                label="Work Location"
-                value={data.internshipLocation}
-              />
-            )}
-
-            <InfoRow label="Start Date" value={data.startDate} />
-
-            <InfoRow label="End Date" value={data.endDate} />
-
-            {data.duration && (
-              <InfoRow
-                label="Duration"
-                value={data.duration}
-              />
-            )}
-
-            {data.reportingManager && (
-              <InfoRow
-                label="Reporting Manager"
-                value={`${data.reportingManager}${
-                  data.reportingManagerDesignation
-                    ? ` (${data.reportingManagerDesignation})`
-                    : ""
-                }`}
-              />
-            )}
-
-            {data.reportingManagerEmail && (
-              <InfoRow
-                label="Manager Email"
-                value={data.reportingManagerEmail}
-                last
-              />
-            )}
-          </View>
-        </View>
-
-        {/* ================= COMPENSATION ================= */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Compensation & Benefits
-          </Text>
-
-          <View style={styles.table}>
-            <InfoRow
-              label="Internship Type"
-              value={data.isPaid ? "Paid Internship" : "Unpaid Internship"}
-            />
-
-            {data.isPaid && (
-              <>
+              {(data.course || data.branch || data.semester) && (
                 <InfoRow
-                  label="Stipend / Salary"
-                  value={formatCurrency(
-                    compensation,
-                    data.currency || "INR"
-                  )}
+                  label="Education"
+                  value={[
+                    data.course,
+                    data.branch,
+                    data.semester
+                      ? `${data.semester}${/^\d+$/.test(data.semester) ? " Semester" : ""}`
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" | ")}
                 />
+              )}
 
-                {data.paymentFrequency && (
-                  <InfoRow
-                    label="Payment Frequency"
-                    value={data.paymentFrequency}
-                  />
-                )}
-
-                {data.paymentDate && (
-                  <InfoRow
-                    label="Payment Schedule"
-                    value={data.paymentDate}
-                  />
-                )}
-              </>
-            )}
-
-            {data.incentives && (
+              {/* College intentionally hidden in the reference layout. */}
+              {/* University intentionally hidden to keep the reference one-page layout. */}
               <InfoRow
-                label="Additional Incentives"
-                value={data.incentives}
+                label="Enrollment No."
+                value={data.enrollmentNumber}
               />
-            )}
+            </Card>
 
-            {data.benefits?.length ? (
+            <Card title="Work Schedule">
               <InfoRow
-                label="Benefits"
-                value={data.benefits.join(", ")}
-                last
+                label="Mode"
+                value={displayMode(data.mode)}
               />
-            ) : null}
-          </View>
-        </View>
-
-        {/* ================= WORKING SCHEDULE ================= */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Working Schedule</Text>
-
-          <View style={styles.table}>
-            <InfoRow
-              label="Working Hours"
-              value={data.workingHours}
-            />
-
-            {data.shiftStartTime && data.shiftEndTime && (
+              <InfoRow label="Hours" value={data.workingHours} />
+              {(data.shiftStartTime || data.shiftEndTime) && (
+                <InfoRow
+                  label="Shift"
+                  value={
+                    data.shiftStartTime && data.shiftEndTime
+                      ? `${data.shiftStartTime} - ${data.shiftEndTime}`
+                      : data.shiftStartTime || data.shiftEndTime
+                  }
+                />
+              )}
               <InfoRow
-                label="Shift Timing"
-                value={`${data.shiftStartTime} - ${data.shiftEndTime}`}
+                label="Working Days"
+                value={<WorkingDaysText days={data.workingDays} />}
               />
-            )}
-
-            {data.weeklyHours !== undefined && (
+              <InfoRow label="Break" value={data.breakDuration} />
               <InfoRow
                 label="Weekly Hours"
-                value={`${data.weeklyHours} hours`}
+                value={
+                  data.weeklyHours !== undefined
+                    ? `${data.weeklyHours} hours`
+                    : undefined
+                }
               />
-            )}
+            </Card>
+          </View>
 
-            {data.breakDuration && (
+          <View style={styles.topColumn}>
+            <Card title="Internship Details">
+              <InfoRow label="Designation" value={data.designation} />
+              <InfoRow label="Department" value={data.department} />
+              {/* <InfoRow label="Type" value={data.internshipType} /> */}
+              {/* Work mode is already shown in the Work Schedule card. */}
+              <InfoRow label="Work Location" value={data.internshipLocation} />
+              {/* Joining location intentionally hidden in the reference layout. */}
+              <InfoRow label="Start Date" value={data.startDate} />
+              <InfoRow label="End Date" value={data.endDate} />
+              <InfoRow label="Duration" value={data.duration} />
               <InfoRow
-                label="Break Duration"
-                value={data.breakDuration}
+                label="Manager"
+                value={
+                  data.reportingManager
+                    ? `${data.reportingManager}${
+                        data.reportingManagerDesignation
+                          ? `, ${data.reportingManagerDesignation}`
+                          : ""
+                      }`
+                    : undefined
+                }
               />
-            )}
+            </Card>
 
-            <InfoRow
-              label="Working Days"
-              last
-              value={
-                <View style={styles.workingDaysContainer}>
-                  {(
-                    Object.keys(
-                      data.workingDays
-                    ) as Array<keyof WorkingDays>
-                  ).map((day) => (
-                    <View
-                      key={day}
-                      style={[
-                        styles.workingDay,
-                        ...(data.workingDays[day]
-                          ? [styles.activeDay]
-                          : []),
-                      ]}
-                    >
-                      <Text>
-                        {dayLabels[day]}{" "}
-                        {data.workingDays[day] ? "✓" : "✕"}
-                      </Text>
-                    </View>
-                  ))}
+            <Card title="Compensation & Access">
+              {/* <InfoRow
+                label="Compensation"
+                value={
+                  data.isPaid
+                    ? formatCurrency(
+                        compensation,
+                        data.currency || "INR"
+                      )
+                    : "Unpaid internship"
+                }
+              /> */}
+
+              {data.isPaid && (
+                <>
+                  <InfoRow
+                    label="Payment"
+                    value={data.paymentFrequency}
+                  />
+                  <InfoRow
+                    label="Payment Date"
+                    value={data.paymentDate}
+                  />
+                </>
+              )}
+
+              <InfoRow
+                label="Attendance"
+                value={
+                  data.minimumAttendancePercentage !== undefined
+                    ? `${data.minimumAttendancePercentage}% minimum`
+                    : undefined
+                }
+              />
+              <InfoRow
+                label="Assets"
+                value={
+                  data.companyAssetsProvided?.length
+                    ? data.companyAssetsProvided.slice(0, 1).join(", ")
+                    : undefined
+                }
+              />
+            </Card>
+          </View>
+        </View>
+
+        {/* ================= DATE SUMMARY ================= */}
+        <View style={styles.dateGrid}>
+          <View style={styles.dateCard}>
+            <Text style={styles.dateValue}>{data.startDate}</Text>
+            <Text style={styles.dateLabel}>Start Date</Text>
+          </View>
+
+          <View style={styles.dateCard}>
+            <Text style={styles.dateValue}>{data.endDate}</Text>
+            <Text style={styles.dateLabel}>End Date</Text>
+          </View>
+
+          <View style={styles.dateCard}>
+            <Text style={styles.dateValue}>{data.duration || "N/A"}</Text>
+            <Text style={styles.dateLabel}>Duration</Text>
+          </View>
+        </View>
+
+        {/* ================= LOWER CONTENT ================= */}
+        <View style={styles.lowerGrid}>
+          <View style={styles.lowerColumn}>
+            {data.responsibilities?.length ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Key Responsibilities</Text>
+                <BulletList items={data.responsibilities?.slice(0, 3)} />
+              </View>
+            ) : null}
+
+            {data.learningObjectives?.length ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Learning Objectives</Text>
+                <BulletList items={data.learningObjectives?.slice(0, 2)} />
+              </View>
+            ) : null}
+
+            {data.technologies?.length ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Technologies</Text>
+                <Text style={styles.compactText}>
+                  {data.technologies.join(", ")}
+                </Text>
+              </View>
+            ) : null}
+
+            {data.leavePolicy ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Leave Policy</Text>
+                <Text style={styles.compactText}>{data.leavePolicy}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.lowerColumn}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Terms & Compliance</Text>
+
+              {data.confidentialityRequired && (
+                <View style={styles.listItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.listText}>
+                    Confidentiality: Company, client and project information
+                    must remain protected.
+                  </Text>
                 </View>
-              }
-            />
+              )}
+
+              {data.terminationPolicy && (
+                <View style={styles.listItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.listText}>
+                    Termination: {data.terminationPolicy}
+                  </Text>
+                </View>
+              )}
+
+              {data.codeOfConduct && (
+                <View style={styles.listItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.listText}>
+                    Conduct: {data.codeOfConduct}
+                  </Text>
+                </View>
+              )}
+
+              {data.noticePeriod && (
+                <View style={styles.listItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.listText}>
+                    Notice: {data.noticePeriod}
+                  </Text>
+                </View>
+              )}
+
+              {data.probationPeriod && (
+                <View style={styles.listItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.listText}>
+                    Probation: {data.probationPeriod}
+                  </Text>
+                </View>
+              )}
+
+              <BulletList items={data.termsAndConditions?.slice(0, 4)} />
+            </View>
+
+            {(data.performanceReview ||
+              data.completionCriteria ||
+              data.certificateEligibility) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  Performance & Completion
+                </Text>
+
+                {data.performanceReview && (
+                  <Text style={styles.compactText}>
+                    <Text style={styles.bold}>Performance: </Text>
+                    {data.performanceReview}
+                  </Text>
+                )}
+
+                {data.completionCriteria && (
+                  <Text style={styles.compactText}>
+                    <Text style={styles.bold}>Completion: </Text>
+                    {data.completionCriteria}
+                  </Text>
+                )}
+
+                {data.certificateEligibility && (
+                  <Text style={styles.compactText}>
+                    <Text style={styles.bold}>Certificate: </Text>
+                    {data.certificateEligibility}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {data.additionalNotes && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Additional Information</Text>
+                <Text style={styles.compactText}>{data.additionalNotes}</Text>
+              </View>
+            )}
+
+            {hasHR && (
+              <View style={styles.hrSection}>
+                <Text style={styles.sectionTitle}>HR Contact</Text>
+                {data.hrName && (
+                  <Text style={styles.compactText}>
+                    {data.hrName}
+                    {data.hrDesignation
+                      ? `, ${data.hrDesignation}`
+                      : ""}
+                  </Text>
+                )}
+                {data.hrEmail && (
+                  <Text style={styles.compactText}>
+                    {data.hrEmail}
+                  </Text>
+                )}
+                {data.hrPhone && (
+                  <Text style={styles.compactText}>
+                    {data.hrPhone}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         </View>
-
-        {/* ================= RESPONSIBILITIES ================= */}
-
-        {data.responsibilities?.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Roles & Responsibilities
-            </Text>
-
-            <BulletList items={data.responsibilities} />
-          </View>
-        ) : null}
-
-        {data.learningObjectives?.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Learning Objectives
-            </Text>
-
-            <BulletList items={data.learningObjectives} />
-          </View>
-        ) : null}
-
-        {data.technologies?.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Technologies / Tools
-            </Text>
-
-            <Text>{data.technologies.join(", ")}</Text>
-          </View>
-        ) : null}
-
-        {/* ================= ATTENDANCE ================= */}
-
-        {(data.minimumAttendancePercentage ||
-          data.allowedLeaves !== undefined ||
-          data.leavePolicy) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Attendance & Leave Policy
-            </Text>
-
-            <View style={styles.table}>
-              {data.minimumAttendancePercentage && (
-                <InfoRow
-                  label="Minimum Attendance"
-                  value={`${data.minimumAttendancePercentage}%`}
-                />
-              )}
-
-              {data.allowedLeaves !== undefined && (
-                <InfoRow
-                  label="Allowed Leaves"
-                  value={`${data.allowedLeaves}`}
-                />
-              )}
-
-              {data.leavePolicy && (
-                <InfoRow
-                  label="Leave Policy"
-                  value={data.leavePolicy}
-                  last
-                />
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* ================= COMPANY ASSETS ================= */}
-
-        {data.companyAssetsProvided?.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Company Assets / Access
-            </Text>
-
-            <BulletList items={data.companyAssetsProvided} />
-          </View>
-        ) : null}
-
-        {/* ================= TERMS ================= */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Terms & Conditions
-          </Text>
-
-          {data.confidentialityRequired && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                You must maintain confidentiality of all company,
-                customer, project and business information accessed
-                during the internship.
-              </Text>
-            </View>
-          )}
-
-          {data.confidentialityClause && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                {data.confidentialityClause}
-              </Text>
-            </View>
-          )}
-
-          {data.intellectualPropertyClause && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                {data.intellectualPropertyClause}
-              </Text>
-            </View>
-          )}
-
-          {data.noticePeriod && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                Notice Period: {data.noticePeriod}
-              </Text>
-            </View>
-          )}
-
-          {data.probationPeriod && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                Probation Period: {data.probationPeriod}
-              </Text>
-            </View>
-          )}
-
-          {data.terminationPolicy && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                {data.terminationPolicy}
-              </Text>
-            </View>
-          )}
-
-          {data.codeOfConduct && (
-            <View style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>
-                {data.codeOfConduct}
-              </Text>
-            </View>
-          )}
-
-          <BulletList items={data.termsAndConditions} />
-        </View>
-
-        {/* ================= COMPLETION ================= */}
-
-        {(data.completionCriteria ||
-          data.certificateEligibility ||
-          data.performanceReview) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Performance & Completion
-            </Text>
-
-            {data.performanceReview && (
-              <Text style={styles.paragraph}>
-                <Text style={styles.bold}>
-                  Performance Review:{" "}
-                </Text>
-                {data.performanceReview}
-              </Text>
-            )}
-
-            {data.completionCriteria && (
-              <Text style={styles.paragraph}>
-                <Text style={styles.bold}>
-                  Completion Criteria:{" "}
-                </Text>
-                {data.completionCriteria}
-              </Text>
-            )}
-
-            {data.certificateEligibility && (
-              <Text style={styles.paragraph}>
-                <Text style={styles.bold}>
-                  Certificate Eligibility:{" "}
-                </Text>
-                {data.certificateEligibility}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {data.additionalNotes && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Additional Information
-            </Text>
-
-            <Text style={styles.paragraph}>
-              {data.additionalNotes}
-            </Text>
-          </View>
-        )}
 
         {/* ================= ACCEPTANCE ================= */}
-
         {data.acceptanceRequired !== false && (
           <View style={styles.acceptanceBox}>
-            <Text style={styles.bold}>Acceptance of Offer</Text>
-
-            <Text style={{ marginTop: 6 }}>
-              By accepting this offer, you confirm that you have read,
-              understood and agreed to the terms and conditions
-              mentioned in this internship offer letter.
-            </Text>
-
-            {data.acceptanceDeadline && (
-              <Text style={{ marginTop: 5 }}>
-                Acceptance Deadline:{" "}
-                <Text style={styles.bold}>
-                  {data.acceptanceDeadline}
-                </Text>
+            <View style={styles.acceptanceText}>
+              <Text style={styles.acceptanceTitle}>Acceptance</Text>
+              <Text style={styles.acceptanceBody}>
+                By accepting, you confirm that you have read and agreed to the
+                appointment and terms stated in this offer.
+                {data.acceptanceDeadline
+                  ? ` Acceptance deadline: ${data.acceptanceDeadline}.`
+                  : ""}
               </Text>
-            )}
+            </View>
+
+            <View style={styles.validBadge}>
+              <Text style={styles.validBadgeText}>VALID OFFER</Text>
+            </View>
           </View>
         )}
 
-        {/* ================= SIGNATURE ================= */}
-
+        {/* ================= SIGNATURES ================= */}
         <View style={styles.signatureSection} wrap={false}>
           <View style={styles.signatureBlock}>
             {data.authorizedSignature ? (
@@ -1041,70 +1035,40 @@ export default function InternshipOfferLetterPDF({
               <View style={styles.signatureLine} />
             )}
 
-            <Text style={styles.bold}>
+            <Text style={styles.signatureName}>
               {data.authorizedPersonName}
             </Text>
-
-            <Text>
+            <Text style={styles.signatureMeta}>
               {data.authorizedPersonDesignation}
             </Text>
+            <Text style={styles.signatureMeta}>{data.companyName}</Text>
+          </View>
 
-            <Text>{data.companyName}</Text>
-
-            {data.companyStamp && (
+          <View style={styles.signatureCenter}>
+            {data.companyStamp ? (
               <Image src={data.companyStamp} style={styles.stamp} />
+            ) : (
+              <Text style={styles.signatureMeta}> </Text>
             )}
           </View>
 
           <View style={styles.signatureBlock}>
             <View style={styles.signatureLine} />
-
-            <Text style={styles.bold}>{data.name}</Text>
-            <Text>Intern Signature</Text>
-
-            <Text style={{ marginTop: 7 }}>
-              Date: __________________
-            </Text>
+            <Text style={styles.signatureName}>{data.name}</Text>
+            <Text style={styles.signatureMeta}>Intern Signature and Date</Text>
           </View>
         </View>
 
-        {/* ================= HR CONTACT ================= */}
-
-        {(data.hrName || data.hrEmail) && (
-          <View style={[styles.section, { marginTop: 20 }]}>
-            <Text style={styles.sectionTitle}>
-              HR Contact
-            </Text>
-
-            {data.hrName && (
-              <Text>
-                {data.hrName}
-                {data.hrDesignation
-                  ? ` — ${data.hrDesignation}`
-                  : ""}
-              </Text>
-            )}
-
-            {data.hrEmail && (
-              <Text>Email: {data.hrEmail}</Text>
-            )}
-
-            {data.hrPhone && (
-              <Text>Phone: {data.hrPhone}</Text>
-            )}
-          </View>
-        )}
-
         {/* ================= FOOTER ================= */}
-
         <View style={styles.footer} fixed>
-          <Text>
-            {data.companyName} • Offer ID: {data.offerLetterId}
+          <Text style={styles.footerText}>
+            {data.companyName} | Offer ID: {data.offerLetterId}
           </Text>
 
           <Text
+            style={styles.footerPageText}
             render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
+              `Computer-generated offer | Page ${pageNumber} of ${totalPages}`
             }
           />
         </View>
