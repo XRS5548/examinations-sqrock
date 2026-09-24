@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
@@ -16,10 +16,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { updateExam } from "@/actions/exams";
+import {
+  INTERNSHIP_DURATION_OPTIONS,
+  internshipScheduleSchema,
+} from "@/lib/internship";
 import { toast } from "sonner";
+import type { Exam } from "./ExamsTable";
 import {
   Users,
   FileQuestion,
@@ -28,7 +34,8 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 
-const examSchema = z.object({
+const examSchema = z
+  .object({
   name: z.string().min(1, "Exam name is required"),
   description: z.string().optional(),
   examDate: z.string().optional(),
@@ -48,7 +55,8 @@ const examSchema = z.object({
     .or(z.literal("")),
   emailSubject: z.string().optional(),
   emailBody: z.string().optional(),
-});
+  })
+  .merge(internshipScheduleSchema);
 
 type FormData = z.infer<typeof examSchema>;
 
@@ -76,10 +84,13 @@ interface EditExamDialogProps {
     coverImage: string | null;
     emailSubject: string | null;
     emailBody: string | null;
+    internshipStartDate: string | null;
+    internshipEndDate: string | null;
+    internshipDuration: string | null;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExamUpdated: (exam: any) => void;
+  onExamUpdated: (exam: Exam) => void;
 }
 
 export function EditExamDialog({
@@ -101,9 +112,15 @@ export function EditExamDialog({
     reset,
     setValue,
     getValues,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(examSchema),
+  });
+
+  const internshipDuration = useWatch({
+    control,
+    name: "internshipDuration",
   });
 
   useEffect(() => {
@@ -120,6 +137,9 @@ export function EditExamDialog({
         durationMinutes: exam.durationMinutes?.toString() || "",
         totalMarks: exam.totalMarks?.toString() || "",
         passingScore: exam.passingScore?.toString() || "60",
+        internshipStartDate: exam.internshipStartDate?.slice(0, 10) || "",
+        internshipEndDate: exam.internshipEndDate?.slice(0, 10) || "",
+        internshipDuration: exam.internshipDuration || "1 Month",
         syllabusPdf: exam.syllabusPdf || "",
         coverImage: exam.coverImage || "",
         emailSubject: exam.emailSubject || "",
@@ -168,6 +188,9 @@ export function EditExamDialog({
         formData.append("durationMinutes", data.durationMinutes);
       if (data.totalMarks) formData.append("totalMarks", data.totalMarks);
       if (data.passingScore) formData.append("passingScore", data.passingScore);
+      formData.append("internshipStartDate", data.internshipStartDate);
+      formData.append("internshipEndDate", data.internshipEndDate);
+      formData.append("internshipDuration", data.internshipDuration);
       if (data.syllabusPdf) formData.append("syllabusPdf", data.syllabusPdf);
       if (data.coverImage) formData.append("coverImage", data.coverImage);
       if (data.emailSubject)
@@ -178,12 +201,12 @@ export function EditExamDialog({
 
       if (result.success) {
         toast.success("Exam updated successfully");
-        onExamUpdated(result.exam);
+        onExamUpdated(result.exam as Exam);
         onOpenChange(false);
       } else {
         toast.error(result.error?.toString() || "Failed to update exam");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     } finally {
       setLoading(false);
@@ -279,6 +302,66 @@ export function EditExamDialog({
                 placeholder="60"
                 {...register("passingScore")}
               />
+            </div>
+          </div>
+
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-sm font-semibold">Internship Schedule</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="internshipStartDate">Internship Start Date *</Label>
+                <Input
+                  id="internshipStartDate"
+                  type="date"
+                  {...register("internshipStartDate")}
+                />
+                {errors.internshipStartDate && (
+                  <p className="text-sm text-red-500">
+                    {errors.internshipStartDate.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="internshipEndDate">Internship End Date *</Label>
+                <Input
+                  id="internshipEndDate"
+                  type="date"
+                  {...register("internshipEndDate")}
+                />
+                {errors.internshipEndDate && (
+                  <p className="text-sm text-red-500">
+                    {errors.internshipEndDate.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="internshipDuration">Internship Duration *</Label>
+                <Select
+                  value={internshipDuration}
+                  onValueChange={(value) =>
+                    setValue("internshipDuration", value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  <SelectTrigger id="internshipDuration">
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERNSHIP_DURATION_OPTIONS.map((duration) => (
+                      <SelectItem key={duration} value={duration}>
+                        {duration}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.internshipDuration && (
+                  <p className="text-sm text-red-500">
+                    {errors.internshipDuration.message}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

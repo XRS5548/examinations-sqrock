@@ -3,7 +3,7 @@
 
 import { db } from "@/db";
 import { examRegistrations, students, exams, announcements, articles, companies } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -96,42 +96,7 @@ export async function searchStudentResult(formData: FormData) {
         cheating: registration.cheating ?? false,
         submittedAt: registration.submittedAt,
         rank: null,
-
-        // =====================================================
-        // FULL REGISTRATION DATA FOR OFFER LETTER
-        // =====================================================
-        registrationData: {
-          // Personal Details
-          gender: registration.gender,
-          phone: student.phone,
-          dob: student.dob,
-
-          // Education Details
-          universityName: registration.universityName,
-          collegeName: registration.collegeName,
-          course: registration.course,
-          branch: registration.branch,
-          semester: registration.semester,
-          enrollmentNumber: registration.enrollmentNumber,
-          graduationYear: registration.graduationYear,
-
-          // Address Details
-          address: registration.address,
-          city: registration.city,
-          state: registration.state,
-          country: registration.country,
-          pincode: registration.pincode,
-
-          // Preferences
-          domain: registration.domain,
-          preferredStartDate: registration.preferredStartDate,
-          preferredDuration: registration.preferredDuration,
-
-          // Emergency Contact
-          emergencyContactName: registration.emergencyContactName,
-          emergencyContactPhone: registration.emergencyContactPhone,
-          emergencyContactRelation: registration.emergencyContactRelation,
-        },
+        passingScore: exam.passingScore ?? 0,
       },
     };
   } catch (error) {

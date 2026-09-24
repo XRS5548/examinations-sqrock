@@ -49,6 +49,12 @@ export default async function ExamsPage() {
     examCloseDate: exam.examCloseDate,
     durationMinutes: exam.durationMinutes,
     totalMarks: exam.totalMarks,
+    passingScore: exam.passingScore,
+    internshipStartDate: exam.internshipStartDate,
+    internshipEndDate: exam.internshipEndDate,
+    internshipDuration: exam.internshipDuration,
+    emailSubject: exam.emailSubject,
+    emailBody: exam.emailBody,
     isLive: exam.isLive ?? false,
     isPublic: exam.isPublic ?? false,
     isClosed: exam.isClosed ?? false,  // ADD THIS LINE

@@ -188,11 +188,12 @@ export default function CertificatesPage() {
         startDate: formatDate(certificate.startDate),
         endDate: formatDate(certificate.endDate),
 
-        // ✅ ALWAYS compute from actual dates — never trust stored duration
-        duration: computeDuration(
-          certificate.startDate,
-          certificate.endDate
-        ),
+        duration:
+          certificate.duration ||
+          computeDuration(
+            certificate.startDate,
+            certificate.endDate
+          ),
 
         // =========================
         // Performance

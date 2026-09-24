@@ -93,9 +93,10 @@ type Assignment = {
   country: string | null;
   pincode: string | null;
 
-  // Preferences
-  preferredStartDate: string | null;
-  preferredDuration: string | null;
+  // Internship
+  internshipStartDate: string | null;
+  internshipEndDate: string | null;
+  internshipDuration: string | null;
 
   // Emergency Contact
   emergencyContactName: string | null;
@@ -158,11 +159,6 @@ export function AssignedStudentsTable({
     });
   }, [assignments, searchTerm]);
 
-  // Reset to page 1 when search changes
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
   const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, filteredAssignments.length);
@@ -187,7 +183,7 @@ export function AssignedStudentsTable({
       } else {
         toast.error(result.error || "Failed to remove student");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     } finally {
       setLoading(false);
@@ -223,7 +219,11 @@ export function AssignedStudentsTable({
   const formatDateStr = (val: string | Date | null | undefined) => {
     if (!val) return "N/A";
     try {
-      return format(new Date(val), "MMM dd, yyyy");
+      const date =
+        typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val)
+          ? new Date(`${val}T00:00:00`)
+          : new Date(val);
+      return format(date, "MMM dd, yyyy");
     } catch {
       return "N/A";
     }
@@ -267,10 +267,11 @@ export function AssignedStudentsTable({
       "State",
       "Country",
       "Pincode",
-      // Domain & Preferences
+      // Domain & Internship
       "Domain",
-      "Preferred Start Date",
-      "Preferred Duration",
+      "Internship Start Date",
+      "Internship End Date",
+      "Internship Duration",
       // Emergency Contact
       "Emergency Contact Name",
       "Emergency Contact Phone",
@@ -304,8 +305,9 @@ export function AssignedStudentsTable({
       a.country || "N/A",
       a.pincode || "N/A",
       a.domain || "N/A",
-      formatDateStr(a.preferredStartDate),
-      a.preferredDuration || "N/A",
+      formatDateStr(a.internshipStartDate),
+      formatDateStr(a.internshipEndDate),
+      a.internshipDuration || "N/A",
       a.emergencyContactName || "N/A",
       a.emergencyContactPhone || "N/A",
       a.emergencyContactRelation || "N/A",
@@ -390,10 +392,11 @@ export function AssignedStudentsTable({
         pincode: a.pincode,
       },
 
-      // Domain & Preferences
+      // Domain & Internship
       domain: a.domain,
-      preferredStartDate: a.preferredStartDate,
-      preferredDuration: a.preferredDuration,
+      internshipStartDate: a.internshipStartDate,
+      internshipEndDate: a.internshipEndDate,
+      internshipDuration: a.internshipDuration,
 
       // Emergency Contact
       emergencyContact: {
@@ -485,7 +488,10 @@ export function AssignedStudentsTable({
               <Input
                 placeholder="Search by name, email, university..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="pl-8 h-9 w-[280px]"
               />
             </div>
@@ -530,7 +536,9 @@ export function AssignedStudentsTable({
                 <TableHead>City</TableHead>
                 <TableHead>State</TableHead>
                 <TableHead>Domain</TableHead>
-                <TableHead>Duration</TableHead>
+                <TableHead>Internship Start</TableHead>
+                <TableHead>Internship End</TableHead>
+                <TableHead>Internship Duration</TableHead>
                 <TableHead>Score</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Cheating</TableHead>
@@ -542,10 +550,10 @@ export function AssignedStudentsTable({
               {paginatedAssignments.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={22}
+                    colSpan={24}
                     className="text-center py-8 text-muted-foreground"
                   >
-                    No students found matching "{searchTerm}"
+                      No students found matching &quot;{searchTerm}&quot;
                   </TableCell>
                 </TableRow>
               ) : (
@@ -599,8 +607,14 @@ export function AssignedStudentsTable({
                     <TableCell className="text-xs">
                       {assignment.domain || "—"}
                     </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {formatDateStr(assignment.internshipStartDate)}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {formatDateStr(assignment.internshipEndDate)}
+                    </TableCell>
                     <TableCell className="text-xs">
-                      {assignment.preferredDuration || "—"}
+                      {assignment.internshipDuration || "—"}
                     </TableCell>
                     <TableCell className="text-sm font-semibold">
                       {assignment.score ?? 0}
@@ -802,15 +816,19 @@ export function AssignedStudentsTable({
               </Section>
 
               {/* Internship Preferences */}
-              <Section title="Internship Preferences">
+              <Section title="Internship Details">
                 <DetailRow label="Domain" value={viewingAssignment.domain} />
                 <DetailRow
-                  label="Preferred Start Date"
-                  value={formatDateStr(viewingAssignment.preferredStartDate)}
+                  label="Internship Start Date"
+                  value={formatDateStr(viewingAssignment.internshipStartDate)}
                 />
                 <DetailRow
-                  label="Preferred Duration"
-                  value={viewingAssignment.preferredDuration}
+                  label="Internship End Date"
+                  value={formatDateStr(viewingAssignment.internshipEndDate)}
+                />
+                <DetailRow
+                  label="Internship Duration"
+                  value={viewingAssignment.internshipDuration}
                 />
               </Section>
 

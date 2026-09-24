@@ -101,6 +101,9 @@ export const exams = pgTable("exams", {
   examCloseDate: timestamp("exam_close_date").defaultNow(),
   durationMinutes: integer("duration_minutes"),
   totalMarks: integer("total_marks"),
+  internshipStartDate: date("internship_start_date"),
+  internshipEndDate: date("internship_end_date"),
+  internshipDuration: varchar("internship_duration", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
   passingScore: integer("passing_score").default(60),
 
@@ -210,14 +213,6 @@ export const examRegistrations = pgTable("exam_registrations", {
   // =====================================================
 
   gender: varchar("gender", { length: 20 }),
-
-  // =====================================================
-  // NEW: Internship Preferences (for offer letter)
-  // =====================================================
-
-  preferredStartDate: date("preferred_start_date"),
-
-  preferredDuration: varchar("preferred_duration", { length: 50 }),
 
   // =====================================================
   // NEW: Emergency Contact

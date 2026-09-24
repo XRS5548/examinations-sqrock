@@ -7,34 +7,39 @@ import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { internshipScheduleSchema } from "@/lib/internship";
 
-const createExamSchema = z.object({
-  name: z.string().min(1, "Exam name is required"),
-  description: z.string().optional(),
-  examDate: z.string().optional(),
-  examCloseDate: z.string().optional(),
-  durationMinutes: z.string().optional(),
-  totalMarks: z.string().optional(),
-  passingScore: z.string().optional(),
-  syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
-  coverImage: z.string().url("Must be a valid URL").optional().nullable(),
-  emailSubject: z.string().optional().nullable(),
-  emailBody: z.string().optional().nullable(),
-});
+const createExamSchema = z
+  .object({
+    name: z.string().min(1, "Exam name is required"),
+    description: z.string().optional(),
+    examDate: z.string().optional(),
+    examCloseDate: z.string().optional(),
+    durationMinutes: z.string().optional(),
+    totalMarks: z.string().optional(),
+    passingScore: z.string().optional(),
+    syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
+    coverImage: z.string().url("Must be a valid URL").optional().nullable(),
+    emailSubject: z.string().optional().nullable(),
+    emailBody: z.string().optional().nullable(),
+  })
+  .merge(internshipScheduleSchema);
 
-const updateExamSchema = z.object({
-  name: z.string().min(1, "Exam name is required"),
-  description: z.string().optional().nullable(),
-  examDate: z.string().optional().nullable(),
-  examCloseDate: z.string().optional().nullable(),
-  durationMinutes: z.string().optional().nullable(),
-  totalMarks: z.string().optional().nullable(),
-  passingScore: z.string().optional().nullable(),
-  syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
-  coverImage: z.string().url("Must be a valid URL").optional().nullable(),
-  emailSubject: z.string().optional().nullable(),
-  emailBody: z.string().optional().nullable(),
-});
+const updateExamSchema = z
+  .object({
+    name: z.string().min(1, "Exam name is required"),
+    description: z.string().optional().nullable(),
+    examDate: z.string().optional().nullable(),
+    examCloseDate: z.string().optional().nullable(),
+    durationMinutes: z.string().optional().nullable(),
+    totalMarks: z.string().optional().nullable(),
+    passingScore: z.string().optional().nullable(),
+    syllabusPdf: z.string().url("Must be a valid URL").optional().nullable(),
+    coverImage: z.string().url("Must be a valid URL").optional().nullable(),
+    emailSubject: z.string().optional().nullable(),
+    emailBody: z.string().optional().nullable(),
+  })
+  .merge(internshipScheduleSchema);
 
 // Helper function to get user's company
 async function getUserCompany() {
@@ -73,6 +78,9 @@ export async function createExam(formData: FormData) {
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
       passingScore: formData.get("passingScore") as string,
+      internshipStartDate: formData.get("internshipStartDate") as string,
+      internshipEndDate: formData.get("internshipEndDate") as string,
+      internshipDuration: formData.get("internshipDuration") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
       coverImage: formData.get("coverImage") as string,
       emailSubject: formData.get("emailSubject") as string,
@@ -102,6 +110,9 @@ export async function createExam(formData: FormData) {
         passingScore: validated.passingScore
           ? parseInt(validated.passingScore)
           : 60, // default fallback
+        internshipStartDate: validated.internshipStartDate,
+        internshipEndDate: validated.internshipEndDate,
+        internshipDuration: validated.internshipDuration,
         emailSubject: validated.emailSubject || undefined, // let DB default apply
         emailBody: validated.emailBody || undefined,
         isLive: false,
@@ -164,6 +175,9 @@ export async function updateExam(id: number, formData: FormData) {
       durationMinutes: formData.get("durationMinutes") as string,
       totalMarks: formData.get("totalMarks") as string,
       passingScore: formData.get("passingScore") as string,
+      internshipStartDate: formData.get("internshipStartDate") as string,
+      internshipEndDate: formData.get("internshipEndDate") as string,
+      internshipDuration: formData.get("internshipDuration") as string,
       syllabusPdf: formData.get("syllabusPdf") as string,
       coverImage: formData.get("coverImage") as string,
       emailSubject: formData.get("emailSubject") as string,
@@ -193,6 +207,9 @@ export async function updateExam(id: number, formData: FormData) {
         passingScore: validated.passingScore
           ? parseInt(validated.passingScore)
           : null,
+        internshipStartDate: validated.internshipStartDate,
+        internshipEndDate: validated.internshipEndDate,
+        internshipDuration: validated.internshipDuration,
         emailSubject: validated.emailSubject,
         emailBody: validated.emailBody,
       })
@@ -266,6 +283,10 @@ export async function getCompanyExams() {
     const examsList = await db.select({
       id: exams.id,
       name: exams.name,
+      resultAnnounced: exams.resultAnnounced,
+      internshipStartDate: exams.internshipStartDate,
+      internshipEndDate: exams.internshipEndDate,
+      internshipDuration: exams.internshipDuration,
     })
       .from(exams)
       .where(eq(exams.companyId, company.id))
@@ -549,11 +570,20 @@ export async function toggleExamClosed(id: number, isClosed: boolean) {
 
 export async function toggleExamPublic(examId: number, isPublic: boolean) {
   try {
-    // Verify exam exists
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const company = await getUserCompany();
+    if (!company) {
+      return { success: false, error: "No company found" };
+    }
+
     const existingExam = await db
       .select()
       .from(exams)
-      .where(eq(exams.id, examId))
+      .where(and(eq(exams.id, examId), eq(exams.companyId, company.id)))
       .limit(1);
 
     if (existingExam.length === 0) {
@@ -568,6 +598,9 @@ export async function toggleExamPublic(examId: number, isPublic: boolean) {
       if (!exam.name) missingFields.push("Exam Name");
       if (!exam.durationMinutes) missingFields.push("Duration");
       if (!exam.totalMarks) missingFields.push("Total Marks");
+      if (!exam.internshipStartDate) missingFields.push("Internship Start Date");
+      if (!exam.internshipEndDate) missingFields.push("Internship End Date");
+      if (!exam.internshipDuration) missingFields.push("Internship Duration");
 
       // Check if exam has at least one question
       const questionCount = await db

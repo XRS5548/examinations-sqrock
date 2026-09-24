@@ -454,7 +454,11 @@ export function ExamInterface({
           await document.exitFullscreen();
         }
         
-        router.push("/thank-you");
+        const resultParams = new URLSearchParams();
+        if (result.rollNumber) resultParams.set("rollNumber", result.rollNumber);
+        if (result.email) resultParams.set("email", result.email);
+        const query = resultParams.toString();
+        router.replace(`/thank-you${query ? `?${query}` : ""}`);
       } else {
         alert(result.error || "Failed to submit exam");
         submitLockRef.current = false;

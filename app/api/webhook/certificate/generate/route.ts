@@ -28,7 +28,7 @@ import {
    CERTIFICATE DATABASE
 ========================================================= */
 
-export const recoardsdb = drizzle(
+const recoardsdb = drizzle(
   process.env.STUDENTCERTIFICATES_DATABASE_URL!
 );
 
@@ -82,116 +82,6 @@ function cleanString(
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
-}
-
-function parseDate(
-  value:
-    | string
-    | Date
-    | null
-    | undefined
-): Date | null {
-  if (!value) return null;
-
-  const date =
-    value instanceof Date
-      ? new Date(value)
-      : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
-
-/* =========================================================
-   CALCULATE END DATE FROM DURATION
-
-   Supports:
-
-   1 Month
-   2 Months
-   3 month
-   4 Weeks
-   6 weeks
-   30 Days
-   45 days
-   1 Year
-
-========================================================= */
-
-function calculateEndDate(
-  startDate: Date,
-  duration: string
-): Date {
-  const result = new Date(startDate);
-
-  const normalized =
-    duration
-      .trim()
-      .toLowerCase();
-
-  const match =
-    normalized.match(
-      /(\d+)\s*(day|days|week|weeks|month|months|year|years)/
-    );
-
-  if (!match) {
-    // Safe fallback
-    result.setMonth(
-      result.getMonth() + 1
-    );
-
-    return result;
-  }
-
-  const amount =
-    Number(match[1]);
-
-  const unit =
-    match[2];
-
-  if (
-    unit === "day" ||
-    unit === "days"
-  ) {
-    result.setDate(
-      result.getDate() + amount
-    );
-  }
-
-  if (
-    unit === "week" ||
-    unit === "weeks"
-  ) {
-    result.setDate(
-      result.getDate() +
-        amount * 7
-    );
-  }
-
-  if (
-    unit === "month" ||
-    unit === "months"
-  ) {
-    result.setMonth(
-      result.getMonth() +
-        amount
-    );
-  }
-
-  if (
-    unit === "year" ||
-    unit === "years"
-  ) {
-    result.setFullYear(
-      result.getFullYear() +
-        amount
-    );
-  }
-
-  return result;
 }
 
 /* =========================================================
@@ -365,6 +255,15 @@ export async function GET(
 
           totalMarks:
             exams.totalMarks,
+
+          internshipStartDate:
+            exams.internshipStartDate,
+
+          internshipEndDate:
+            exams.internshipEndDate,
+
+          internshipDuration:
+            exams.internshipDuration,
         })
         .from(exams)
         .where(
@@ -392,6 +291,25 @@ export async function GET(
 
     const examData =
       examResult[0];
+
+    if (
+      !examData.internshipStartDate ||
+      !examData.internshipEndDate ||
+      !examData.internshipDuration
+    ) {
+      return NextResponse.json(
+        {
+          result:
+            "fail",
+
+          reason:
+            "exam internship schedule is not configured",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
 
     /* =====================================================
        4. FIND STUDENT
@@ -806,63 +724,17 @@ export async function GET(
       );
 
     /* =====================================================
-       13. INTERNSHIP DURATION
-
-       No longer hard-coded.
+       13. INTERNSHIP SCHEDULE
     ===================================================== */
-
-    const preferredDuration =
-      cleanString(
-        registration.preferredDuration
-      );
-
-    const duration =
-      preferredDuration ||
-      "1 Month";
-
-    /* =====================================================
-       14. START DATE
-
-       Priority:
-       1. preferredStartDate
-       2. submittedAt
-       3. exam date
-       4. current date
-    ===================================================== */
-
-    const internshipStart =
-      parseDate(
-        registration.preferredStartDate
-      ) ??
-      parseDate(
-        registration.submittedAt
-      ) ??
-      parseDate(
-        examData.examDate
-      ) ??
-      new Date();
-
-    /* =====================================================
-       15. END DATE
-
-       Automatically calculated from duration.
-    ===================================================== */
-
-    const internshipEnd =
-      calculateEndDate(
-        internshipStart,
-        duration
-      );
 
     const startDate =
-      formatDate(
-        internshipStart
-      );
+      examData.internshipStartDate;
 
     const endDate =
-      formatDate(
-        internshipEnd
-      );
+      examData.internshipEndDate;
+
+    const duration =
+      examData.internshipDuration;
 
     /* =====================================================
        16. DEPARTMENT / DESIGNATION
@@ -1304,12 +1176,6 @@ export async function GET(
           endDate,
 
           duration,
-
-          preferredStartDate:
-            registration.preferredStartDate,
-
-          preferredDuration:
-            registration.preferredDuration,
         },
 
         exam: {

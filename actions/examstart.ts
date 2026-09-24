@@ -213,6 +213,23 @@ export async function submitExam(formData: FormData) {
       return { success: false, error: "Exam already submitted" };
     }
 
+    if (!registration.studentId || !registration.rollNumber) {
+      return { success: false, error: "Student registration data is incomplete" };
+    }
+
+    const studentList = await db
+      .select({
+        email: students.email,
+      })
+      .from(students)
+      .where(eq(students.id, registration.studentId))
+      .limit(1);
+
+    const studentEmail = studentList[0]?.email;
+    if (!studentEmail) {
+      return { success: false, error: "Student email not found" };
+    }
+
     // Get all questions for this exam
     const examQuestions = await db
       .select()
@@ -320,6 +337,8 @@ export async function submitExam(formData: FormData) {
     return { 
       success: true, 
       score: totalMarks,
+      rollNumber: registration.rollNumber,
+      email: studentEmail,
       message: `Exam submitted successfully! You scored ${totalMarks} marks.`
     };
   } catch (error) {

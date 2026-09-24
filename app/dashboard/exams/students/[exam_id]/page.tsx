@@ -61,7 +61,7 @@ export default async function AssignStudentsPage({ params }: PageProps) {
     .filter((id): id is number => id !== null);
 
   // Fetch assigned student details
-  let assignedStudents: any[] = [];
+  let assignedStudents: typeof allStudents = [];
   if (assignedStudentIds.length > 0) {
     assignedStudents = await db.select()
       .from(students)
@@ -99,8 +99,9 @@ export default async function AssignStudentsPage({ params }: PageProps) {
       state: reg.state,
       country: reg.country,
       pincode: reg.pincode,
-      preferredStartDate: reg.preferredStartDate,
-      preferredDuration: reg.preferredDuration,
+      internshipStartDate: exam.internshipStartDate,
+      internshipEndDate: exam.internshipEndDate,
+      internshipDuration: exam.internshipDuration,
       emergencyContactName: reg.emergencyContactName,
       emergencyContactPhone: reg.emergencyContactPhone,
       emergencyContactRelation: reg.emergencyContactRelation,

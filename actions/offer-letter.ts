@@ -2,58 +2,21 @@
 "use server";
 
 import { offerLetters } from "@/db/recoards";
-import { eq } from "drizzle-orm";
+import { exams, examRegistrations, students } from "@/db/schema";
+import { eq, and, inArray, or } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth";
+import { getUserCompany } from "./company";
 import {
   getDesignation,
   getDepartment,
 } from "./offer-letter-helpers";
 
-import { studentDb as db } from "@/db/student-db";
+import { db } from "@/db";
+import { studentDb } from "@/db/student-db";
 
 // =====================================================
 // TYPES
 // =====================================================
-
-export type RegistrationData = {
-  // Personal Details
-  gender?: string | null;
-  phone?: string | null;
-  dob?: Date | string | null;
-
-  // Education Details
-  universityName?: string | null;
-  collegeName?: string | null;
-  course?: string | null;
-  branch?: string | null;
-  semester?: string | null;
-  enrollmentNumber?: string | null;
-  graduationYear?: number | null;
-
-  // Address Details
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  pincode?: string | null;
-
-  // Preferences
-  domain?: string | null;
-  preferredStartDate?: string | null;
-  preferredDuration?: string | null;
-
-  // Emergency Contact
-  emergencyContactName?: string | null;
-  emergencyContactPhone?: string | null;
-  emergencyContactRelation?: string | null;
-};
-
-export type StudentData = {
-  name: string;
-  email: string;
-  rollNumber: string;
-  examName: string;
-  registrationData?: RegistrationData;
-};
 
 export type OfferLetterResponse = {
   id: number;
@@ -178,37 +141,119 @@ function serializeOfferLetter(
 // =====================================================
 
 export async function getOrCreateOfferLetter(
-  resultId: number,
-  studentData: StudentData
+  registrationId: number
 ): Promise<OfferLetterResponse> {
-  const existing = await db
-    .select()
-    .from(offerLetters)
-    .where(eq(offerLetters.employeeId, studentData.rollNumber))
+  const sourceList = await db
+    .select({
+      registrationId: examRegistrations.id,
+      examId: exams.id,
+      companyId: exams.companyId,
+      rollNumber: examRegistrations.rollNumber,
+      domain: examRegistrations.domain,
+      gender: examRegistrations.gender,
+      status: examRegistrations.status,
+      score: examRegistrations.score,
+      cheating: examRegistrations.cheating,
+      universityName: examRegistrations.universityName,
+      collegeName: examRegistrations.collegeName,
+      course: examRegistrations.course,
+      branch: examRegistrations.branch,
+      semester: examRegistrations.semester,
+      enrollmentNumber: examRegistrations.enrollmentNumber,
+      graduationYear: examRegistrations.graduationYear,
+      address: examRegistrations.address,
+      city: examRegistrations.city,
+      state: examRegistrations.state,
+      country: examRegistrations.country,
+      pincode: examRegistrations.pincode,
+      emergencyContactName: examRegistrations.emergencyContactName,
+      emergencyContactPhone: examRegistrations.emergencyContactPhone,
+      emergencyContactRelation: examRegistrations.emergencyContactRelation,
+      studentName: students.name,
+      studentEmail: students.email,
+      phone: students.phone,
+      dob: students.dob,
+      examName: exams.name,
+      resultAnnounced: exams.resultAnnounced,
+      passingScore: exams.passingScore,
+      internshipStartDate: exams.internshipStartDate,
+      internshipEndDate: exams.internshipEndDate,
+      internshipDuration: exams.internshipDuration,
+    })
+    .from(examRegistrations)
+    .innerJoin(exams, eq(examRegistrations.examId, exams.id))
+    .innerJoin(students, eq(examRegistrations.studentId, students.id))
+    .where(eq(examRegistrations.id, registrationId))
     .limit(1);
 
-  if (existing.length > 0) {
-    return serializeOfferLetter(existing[0]);
+  if (sourceList.length === 0) {
+    throw new Error("Registration not found");
+  }
+
+  const source = sourceList[0];
+
+  if (!source.rollNumber || !source.studentName || !source.studentEmail) {
+    throw new Error("Student registration data is incomplete");
+  }
+
+  const user = await getCurrentUser();
+  const company = user ? await getUserCompany() : null;
+  if (!company || source.companyId !== company.id) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!source.resultAnnounced) {
+    throw new Error("Results are not announced yet");
+  }
+
+  if (source.status !== "completed") {
+    throw new Error("Exam is not completed");
+  }
+
+  if (source.cheating) {
+    throw new Error("Offer letters cannot be generated for flagged registrations");
+  }
+
+  if ((source.score ?? 0) < (source.passingScore ?? 60)) {
+    throw new Error("Student did not achieve the passing score");
+  }
+
+  if (
+    !source.internshipStartDate ||
+    !source.internshipEndDate ||
+    !source.internshipDuration
+  ) {
+    throw new Error("Exam internship schedule is not configured");
   }
 
   const now = new Date();
-  const regData = studentData.registrationData;
-
-  // Calculate dates
-  const startDate = regData?.preferredStartDate
-    ? new Date(regData.preferredStartDate)
-    : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-
-  const durationMonths = regData?.preferredDuration
-    ? parseInt(regData.preferredDuration.split(" ")[0]) || 1
-    : 1;
-
-  const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + durationMonths);
-
   const offerLetterId = `SQ-INT-${now.getFullYear()}-${String(
-    resultId
+    registrationId
   ).padStart(5, "0")}`;
+
+  const existing = await studentDb
+    .select()
+    .from(offerLetters)
+    .where(
+      or(
+        eq(offerLetters.offerLetterId, offerLetterId),
+        eq(offerLetters.employeeId, source.rollNumber)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    const existingOffer = existing[0];
+    if (existingOffer.examid !== String(source.examId)) {
+      const [updatedOffer] = await studentDb
+        .update(offerLetters)
+        .set({ examid: String(source.examId) })
+        .where(eq(offerLetters.id, existingOffer.id))
+        .returning();
+      return serializeOfferLetter(updatedOffer || existingOffer);
+    }
+    return serializeOfferLetter(existingOffer);
+  }
 
   // =====================================================
   // ✅ Pass domain to get designation & department
@@ -216,33 +261,31 @@ export async function getOrCreateOfferLetter(
   // =====================================================
 
   const designation = getDesignation(
-    studentData.examName,
-    regData?.domain
+    source.examName || "Internship",
+    source.domain
   );
 
   const department = getDepartment(
-    studentData.examName,
-    regData?.domain
+    source.examName || "Internship",
+    source.domain
   );
 
-  const [newOffer] = await db
+  const [newOffer] = await studentDb
     .insert(offerLetters)
     .values({
-      examid: String(resultId),
+      examid: String(source.examId),
       offerLetterId,
-      employeeId: studentData.rollNumber,
-      name: studentData.name,
-      email: studentData.email,
-      phone: regData?.phone || null,
+      employeeId: source.rollNumber,
+      name: source.studentName,
+      email: source.studentEmail,
+      phone: source.phone || null,
 
       designation: designation,
       department: department,
       internshipType: "Unpaid Remote Internship",
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      duration:
-        regData?.preferredDuration ||
-        `${durationMonths} Month${durationMonths > 1 ? "s" : ""}`,
+      startDate: source.internshipStartDate,
+      endDate: source.internshipEndDate,
+      duration: source.internshipDuration,
       issueDate: now.toISOString().split("T")[0],
       workMode: "remote",
       stipend: "Unpaid",
@@ -258,10 +301,10 @@ export async function getOrCreateOfferLetter(
       reportingManagerEmail: "support@sqrock.cloud",
 
       // USE ACTUAL STUDENT DATA
-      universityName: regData?.universityName || "",
-      course: regData?.course || "",
-      branch: regData?.branch || "",
-      semester: regData?.semester || "",
+      universityName: source.universityName || "",
+      course: source.course || "",
+      branch: source.branch || "",
+      semester: source.semester || "",
 
       minimumAttendance: 80,
       allowedLeaves: 3,
@@ -329,28 +372,182 @@ export async function getOrCreateOfferLetter(
   return serializeOfferLetter(newOffer);
 }
 
-// =====================================================
-// UPDATE OFFER LETTER DATES
-// =====================================================
+export async function getCompanyOfferLetters(examId?: string): Promise<OfferLetterResponse[]> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return [];
 
-export async function updateOfferLetterDates(
-  offerLetterId: string,
-  data: {
-    startDate?: string;
-    endDate?: string;
-    duration?: string;
-  }
-): Promise<{ success: boolean }> {
-  await db
-    .update(offerLetters)
-    .set({
-      startDate: data.startDate,
-      endDate: data.endDate,
-      duration: data.duration,
+    const company = await getUserCompany();
+    if (!company) return [];
+
+    const companyExams = await db.select({ id: exams.id })
+      .from(exams)
+      .where(eq(exams.companyId, company.id));
+
+    const examIds = companyExams.map((exam) => String(exam.id));
+    if (examIds.length === 0) return [];
+
+    const registrations = await db.select({
+      examId: exams.id,
+      rollNumber: examRegistrations.rollNumber,
     })
-    .where(eq(offerLetters.offerLetterId, offerLetterId));
+      .from(examRegistrations)
+      .innerJoin(exams, eq(examRegistrations.examId, exams.id))
+      .where(eq(exams.companyId, company.id));
 
-  return { success: true };
+    const registrationMap = new Map(
+      registrations.flatMap((registration) =>
+        registration.rollNumber
+          ? [[registration.rollNumber, String(registration.examId)] as const]
+          : []
+      )
+    );
+    const rollNumbers = [...registrationMap.keys()];
+    if (rollNumbers.length === 0) return [];
+
+    const letters = await studentDb.select()
+      .from(offerLetters)
+      .where(inArray(offerLetters.employeeId, rollNumbers))
+      .orderBy(offerLetters.createdAt);
+
+    const normalizedLetters: (typeof offerLetters.$inferSelect)[] = [];
+    for (const letter of letters) {
+      const actualExamId = registrationMap.get(letter.employeeId || "");
+
+      if (!actualExamId || (examId && actualExamId !== examId)) {
+        continue;
+      }
+
+      if (letter.examid === actualExamId) {
+        normalizedLetters.push(letter);
+        continue;
+      }
+
+      const [updatedLetter] = await studentDb
+        .update(offerLetters)
+        .set({ examid: actualExamId })
+        .where(eq(offerLetters.id, letter.id))
+        .returning();
+      normalizedLetters.push(updatedLetter || letter);
+    }
+
+    return normalizedLetters.map(serializeOfferLetter);
+  } catch (error) {
+    console.error("Get company offer letters error:", error);
+    return [];
+  }
+}
+
+// =====================================================
+// GET STUDENTS ELIGIBLE FOR OFFER LETTER
+// =====================================================
+
+export async function getStudentsForOfferLetter(examId: number): Promise<{
+  id: number;
+  name: string;
+  email: string;
+  rollNumber: string;
+  score: number;
+  examName: string;
+  domain: string | null;
+  universityName: string | null;
+  collegeName: string | null;
+  course: string | null;
+  branch: string | null;
+  semester: string | null;
+  hasOfferLetter: boolean;
+}[]> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    const company = await getUserCompany();
+    if (!company) return [];
+
+    // Verify exam belongs to company
+    const examList = await db.select()
+      .from(exams)
+      .where(and(eq(exams.id, examId), eq(exams.companyId, company.id)))
+      .limit(1);
+
+    if (examList.length === 0) return [];
+
+    const exam = examList[0];
+
+    // Get all registrations for this exam with student details
+    const registrations = await db.select({
+      id: examRegistrations.id,
+      rollNumber: examRegistrations.rollNumber,
+      score: examRegistrations.score,
+      status: examRegistrations.status,
+      cheating: examRegistrations.cheating,
+      domain: examRegistrations.domain,
+      universityName: examRegistrations.universityName,
+      collegeName: examRegistrations.collegeName,
+      course: examRegistrations.course,
+      branch: examRegistrations.branch,
+      semester: examRegistrations.semester,
+      studentName: students.name,
+      studentEmail: students.email,
+    })
+    .from(examRegistrations)
+    .leftJoin(students, eq(examRegistrations.studentId, students.id))
+    .where(eq(examRegistrations.examId, examId));
+
+    const rollNumbers = registrations.flatMap((registration) =>
+      registration.rollNumber ? [registration.rollNumber] : []
+    );
+    const existingOffers = rollNumbers.length
+      ? await studentDb.select({ employeeId: offerLetters.employeeId })
+          .from(offerLetters)
+          .where(inArray(offerLetters.employeeId, rollNumbers))
+      : [];
+    const existingEmployeeIds = new Set(
+      existingOffers.map((offer) => offer.employeeId)
+    );
+
+    const passingScore = exam.passingScore ?? 60;
+
+    return registrations
+      .filter(
+        (registration) =>
+          exam.resultAnnounced &&
+          registration.status === "completed" &&
+          !registration.cheating &&
+          registration.rollNumber &&
+          registration.studentName &&
+          registration.studentEmail &&
+          (registration.score ?? 0) >= passingScore
+      )
+      .map(reg => ({
+        id: reg.id,
+        name: reg.studentName || "",
+        email: reg.studentEmail || "",
+        rollNumber: reg.rollNumber || "",
+        score: reg.score ?? 0,
+        examName: exam.name || "",
+        domain: reg.domain,
+        universityName: reg.universityName,
+        collegeName: reg.collegeName,
+        course: reg.course,
+        branch: reg.branch,
+        semester: reg.semester,
+        hasOfferLetter: existingEmployeeIds.has(reg.rollNumber || ""),
+      }));
+  } catch (error) {
+    console.error("Get students for offer letter error:", error);
+    return [];
+  }
+}
+
+// =====================================================
+// CREATE OFFER LETTER FOR STUDENT
+// =====================================================
+
+export async function createOfferLetterForStudent(
+  registrationId: number
+): Promise<OfferLetterResponse> {
+  return getOrCreateOfferLetter(registrationId);
 }
 
 // =====================================================

@@ -12,9 +12,7 @@ export const dynamic = 'force-dynamic';
 interface ResultsPageProps {
   params: Promise<{
     id: string;
-  }> | {
-    id: string;
-  };
+  }>;
 }
 
 export default async function ResultsPage({ params }: ResultsPageProps) {

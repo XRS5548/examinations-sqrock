@@ -1,9 +1,9 @@
 // components/dashboard/exams/ExamsTable.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { MoreHorizontal, Play, Pause, Eye, FileText, Users, BarChart3, Trophy, Lock, LockOpen, Globe, Globe2 } from "lucide-react";
+import { MoreHorizontal, Play, Pause, Eye, FileText, Users, Trophy, Lock, LockOpen, Globe, Globe2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -37,6 +37,7 @@ import { DeleteExamDialog } from "./DeleteExamDialog";
 import { toggleExamLive, toggleResultAnnounced, toggleExamClosed, toggleExamPublic } from "@/actions/exams";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export type Exam = {
   id: number;
@@ -46,6 +47,12 @@ export type Exam = {
   examCloseDate: Date | null;
   durationMinutes: number | null;
   totalMarks: number | null;
+  passingScore: number | null;
+  internshipStartDate: string | null;
+  internshipEndDate: string | null;
+  internshipDuration: string | null;
+  emailSubject: string | null;
+  emailBody: string | null;
   isLive: boolean;
   isClosed: boolean;
   isPublic: boolean;
@@ -59,9 +66,12 @@ interface ExamsTableProps {
 }
 
 export function ExamsTable({ initialExams }: ExamsTableProps) {
-  const [mounted, setMounted] = useState(false);
+  const searchParams = useSearchParams();
+  const requestedEditExamId = Number(searchParams.get("editExamId"));
   const [exams, setExams] = useState(initialExams);
-  const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [editingExam, setEditingExam] = useState<Exam | null>(() =>
+    initialExams.find((exam) => exam.id === requestedEditExamId) ?? null
+  );
   const [deletingExam, setDeletingExam] = useState<Exam | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [selectedExamForResult, setSelectedExamForResult] = useState<Exam | null>(null);
@@ -69,10 +79,6 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
   const [selectedExamForClosed, setSelectedExamForClosed] = useState<Exam | null>(null);
   const [publicDialogOpen, setPublicDialogOpen] = useState(false);
   const [selectedExamForPublic, setSelectedExamForPublic] = useState<Exam | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleToggleLive = async (id: number, currentStatus: boolean) => {
     try {
@@ -85,7 +91,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       } else {
         toast.error(result.error || "Failed to toggle exam status");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   };
@@ -103,7 +109,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       } else {
         toast.error(result.error || "Failed to update exam closed status");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   };
@@ -121,7 +127,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       } else {
         toast.error(result.error || "Failed to update exam visibility");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   };
@@ -139,7 +145,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       } else {
         toast.error(result.error || "Failed to update result status");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   };
@@ -158,15 +164,6 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
     setSelectedExamForPublic(exam);
     setPublicDialogOpen(true);
   };
-
-  // Don't render anything on server to avoid hydration mismatch
-  if (!mounted) {
-    return (
-      <div className="rounded-md border">
-        <div className="p-8 text-center">Loading...</div>
-      </div>
-    );
-  }
 
   if (exams.length === 0) {
     return (
@@ -192,8 +189,11 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
               <TableHead>Date</TableHead>
               <TableHead>Close Date</TableHead>
 
-              <TableHead>Duration</TableHead>
+              <TableHead>Exam Duration</TableHead>
               <TableHead>Total Marks</TableHead>
+              <TableHead>Internship Start</TableHead>
+              <TableHead>Internship End</TableHead>
+              <TableHead>Internship Duration</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Closed</TableHead>
               <TableHead>Visibility</TableHead>
@@ -236,6 +236,19 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
                 </TableCell>
                 <TableCell suppressHydrationWarning>
                   {exam.totalMarks || "Not set"}
+                </TableCell>
+                <TableCell suppressHydrationWarning>
+                  {exam.internshipStartDate
+                    ? format(new Date(`${exam.internshipStartDate}T00:00:00`), "MMM dd, yyyy")
+                    : "Not set"}
+                </TableCell>
+                <TableCell suppressHydrationWarning>
+                  {exam.internshipEndDate
+                    ? format(new Date(`${exam.internshipEndDate}T00:00:00`), "MMM dd, yyyy")
+                    : "Not set"}
+                </TableCell>
+                <TableCell suppressHydrationWarning>
+                  {exam.internshipDuration || "Not set"}
                 </TableCell>
                 <TableCell suppressHydrationWarning>
                   <Badge variant={exam.isLive ? "default" : "secondary"}>
@@ -358,7 +371,7 @@ export function ExamsTable({ initialExams }: ExamsTableProps) {
       </div>
 
       <EditExamDialog
-        exam={editingExam as any}
+        exam={editingExam}
         open={!!editingExam}
         onOpenChange={(open) => !open && setEditingExam(null)}
         onExamUpdated={(updatedExam) => {

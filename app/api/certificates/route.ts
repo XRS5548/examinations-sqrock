@@ -12,7 +12,7 @@ import { computeDuration } from "@/lib/certificate-utils";
 // =====================================================
 // DB connection
 // =====================================================
-export const recoardsdb = drizzle(
+const recoardsdb = drizzle(
   process.env.STUDENTCERTIFICATES_DATABASE_URL!
 );
 
@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
 
     const cert = result[0];
 
-    // ✅ Compute duration from actual dates (single source of truth)
-    const computedDuration = computeDuration(cert.startDate, cert.endDate);
+    const computedDuration =
+      cert.duration || computeDuration(cert.startDate, cert.endDate);
 
     return NextResponse.json({
       result: "success",
@@ -84,7 +84,6 @@ export async function GET(request: NextRequest) {
         startDate: cert.startDate,
         endDate: cert.endDate,
 
-        // ✅ Always computed — never trust stored duration
         duration: computedDuration,
 
         performanceGrade: cert.performanceGrade,

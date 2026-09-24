@@ -13,7 +13,6 @@ import {
   CheckCircle,
   AlertCircle,
   Award,
-  Users,
   ArrowRight,
   FileText,
   User,
@@ -35,31 +34,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Navbar } from "@/websiteComponents/home/Navbar";
 import { Footer } from "@/websiteComponents/home/Footer";
 import { getAvailableExams, registerForExam, type PublicExam } from "@/actions/public-registration";
+import { INTERNSHIP_DOMAINS } from "@/lib/internship";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ExamRegistrationPage() {
   const router = useRouter();
   
-  const domains = [
-    "Web Development",
-    "Data Science",
-    "Python",
-    "Java",
-    "C++",
-    "Android Development",
-    "Frontend Development",
-    "Backend Development",
-    "UI/UX Design",
-    "Cyber Security",
-    "Digital Marketing",
-  ];
+  const domains = INTERNSHIP_DOMAINS;
 
   const courses = [
     "B.Tech",
@@ -137,10 +125,8 @@ export default function ExamRegistrationPage() {
     country: "India",
     pincode: "",
     
-    // Domain & Preferences
+    // Domain
     domain: "",
-    preferredStartDate: "",
-    preferredDuration: "1 Month",
     
     // Emergency Contact
     emergencyContactName: "",
@@ -149,10 +135,8 @@ export default function ExamRegistrationPage() {
   });
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [infoExam, setInfoExam] = useState<PublicExam | null>(null);
-  const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
     getAvailableExams().then((data) => {
@@ -169,7 +153,6 @@ export default function ExamRegistrationPage() {
     }
     setSubmitting(true);
     setError("");
-    setSuccess("");
 
     const fd = new FormData();
     
@@ -196,10 +179,8 @@ export default function ExamRegistrationPage() {
     fd.set("country", formData.country);
     fd.set("pincode", formData.pincode);
     
-    // Domain & Preferences
+    // Domain
     fd.set("domain", formData.domain);
-    fd.set("preferredStartDate", formData.preferredStartDate);
-    fd.set("preferredDuration", formData.preferredDuration);
     
     // Emergency Contact
     fd.set("emergencyContactName", formData.emergencyContactName);
@@ -225,7 +206,7 @@ export default function ExamRegistrationPage() {
     if (!date) return null;
     try {
       return subDays(new Date(date), 1);
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -236,7 +217,7 @@ export default function ExamRegistrationPage() {
       const displayDate = getDisplayDate(date);
       if (!displayDate) return "TBA";
       return format(displayDate, "MMM dd, yyyy");
-    } catch (error) {
+    } catch {
       return "TBA";
     }
   };
@@ -739,72 +720,32 @@ export default function ExamRegistrationPage() {
                                 </div>
                               </div>
 
-                              {/* ===================================================== */}
-                              {/* DOMAIN & PREFERENCES */}
-                              {/* ===================================================== */}
                               <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                   <BookOpen className="h-5 w-5 text-orange-500" />
-                                  Domain & Internship Preferences
+                                  Internship Domain
                                 </h3>
-                                
-                                <div className="grid md:grid-cols-2 gap-5">
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="domain" className="text-sm font-medium">
-                                      Preferred Domain *
-                                    </Label>
-                                    <Select
-                                      value={formData.domain}
-                                      onValueChange={(value) => setFormData({ ...formData, domain: value })}
-                                      required
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select your domain" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {domains.map((domain) => (
-                                          <SelectItem key={domain} value={domain}>
-                                            {domain}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="preferredDuration" className="text-sm font-medium">
-                                      Preferred Internship Duration *
-                                    </Label>
-                                    <Select
-                                      value={formData.preferredDuration}
-                                      onValueChange={(value) => setFormData({ ...formData, preferredDuration: value })}
-                                      required
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select duration" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="15 Days">15 Days</SelectItem>
-                                        <SelectItem value="1 Month">1 Month</SelectItem>
-                                        <SelectItem value="2 Months">2 Months</SelectItem>
-                                        <SelectItem value="3 Months">3 Months</SelectItem>
-                                        <SelectItem value="6 Months">6 Months</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="preferredStartDate" className="text-sm font-medium">
-                                      Preferred Start Date
-                                    </Label>
-                                    <Input
-                                      id="preferredStartDate"
-                                      type="date"
-                                      value={formData.preferredStartDate}
-                                      onChange={(e) => setFormData({ ...formData, preferredStartDate: e.target.value })}
-                                      min={new Date().toISOString().split('T')[0]}
-                                    />
-                                  </div>
+
+                                <div className="space-y-1.5 max-w-md">
+                                  <Label htmlFor="domain" className="text-sm font-medium">
+                                    Domain *
+                                  </Label>
+                                  <Select
+                                    value={formData.domain}
+                                    onValueChange={(value) => setFormData({ ...formData, domain: value })}
+                                    required
+                                  >
+                                    <SelectTrigger id="domain">
+                                      <SelectValue placeholder="Select your domain" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {domains.map((domain) => (
+                                        <SelectItem key={domain} value={domain}>
+                                          {domain}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               </div>
 

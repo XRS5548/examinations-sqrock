@@ -3,8 +3,9 @@
 
 import { db } from "@/db";
 import { exams, students, examRegistrations, companies } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import { z } from "zod";
+import { INTERNSHIP_DOMAINS } from "@/lib/internship";
 
 const registrationSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -13,8 +14,9 @@ const registrationSchema = z.object({
   dob: z.string().min(1, "Date of birth is required"),
   gender: z.string().optional(),
 
-  // Domain
-  domain: z.string().min(1, "Domain is required"),
+  domain: z.enum(INTERNSHIP_DOMAINS, {
+    error: "Select a valid domain",
+  }),
 
   // Education Details
   universityName: z.string().min(1, "University name is required"),
@@ -31,10 +33,6 @@ const registrationSchema = z.object({
   state: z.string().min(1, "State is required"),
   country: z.string().min(1, "Country is required"),
   pincode: z.string().min(1, "Pincode is required"),
-
-  // Preferences
-  preferredStartDate: z.string().optional(),
-  preferredDuration: z.string().optional(),
 
   // Emergency Contact
   emergencyContactName: z.string().min(1, "Emergency contact name is required"),
@@ -69,7 +67,13 @@ export async function getAvailableExams(): Promise<PublicExam[]> {
       .from(exams)
       .leftJoin(companies, eq(exams.companyId, companies.id))
       .where(
-        sql`${exams.isPublic} = true AND ${exams.isClosed} = false`
+        and(
+          eq(exams.isPublic, true),
+          eq(exams.isClosed, false),
+          isNotNull(exams.internshipStartDate),
+          isNotNull(exams.internshipEndDate),
+          isNotNull(exams.internshipDuration)
+        )
       )
       .orderBy(exams.examDate);
 
@@ -107,10 +111,6 @@ export async function registerForExam(formData: FormData) {
       country: formData.get("country") as string,
       pincode: formData.get("pincode") as string,
 
-      // Preferences
-      preferredStartDate: formData.get("preferredStartDate") as string,
-      preferredDuration: formData.get("preferredDuration") as string,
-
       // Emergency Contact
       emergencyContactName: formData.get("emergencyContactName") as string,
       emergencyContactPhone: formData.get("emergencyContactPhone") as string,
@@ -126,7 +126,14 @@ export async function registerForExam(formData: FormData) {
       .select()
       .from(exams)
       .where(
-        sql`${exams.id} = ${validated.examId} AND ${exams.isPublic} = true AND ${exams.isClosed} = false`
+        and(
+          eq(exams.id, validated.examId),
+          eq(exams.isPublic, true),
+          eq(exams.isClosed, false),
+          isNotNull(exams.internshipStartDate),
+          isNotNull(exams.internshipEndDate),
+          isNotNull(exams.internshipDuration)
+        )
       )
       .limit(1);
 
@@ -163,7 +170,7 @@ export async function registerForExam(formData: FormData) {
     const company = companyList[0];
 
     // Check if student already exists
-    let student = await db
+    const student = await db
       .select()
       .from(students)
       .where(
@@ -181,7 +188,7 @@ export async function registerForExam(formData: FormData) {
 
       // Update student details if missing
       const existingStudent = student[0];
-      const updateData: any = {};
+      const updateData: Partial<typeof students.$inferInsert> = {};
       let needsUpdate = false;
 
       if (!existingStudent.name && validated.name) {
@@ -312,10 +319,6 @@ export async function registerForExam(formData: FormData) {
         country: validated.country || "India",
         pincode: validated.pincode,
 
-        // Preferences
-        preferredStartDate: validated.preferredStartDate || null,
-        preferredDuration: validated.preferredDuration || null,
-
         // Emergency Contact
         emergencyContactName: validated.emergencyContactName,
         emergencyContactPhone: validated.emergencyContactPhone,
@@ -392,10 +395,6 @@ export type RegistrationDetails = {
   // NEW: Personal Details
   gender: string | null;
 
-  // NEW: Preferences
-  preferredStartDate: string | null;
-  preferredDuration: string | null;
-
   // NEW: Emergency Contact
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
@@ -448,10 +447,6 @@ export async function getRegistrationDetails(
 
         // NEW: Personal Details
         gender: examRegistrations.gender,
-
-        // NEW: Preferences
-        preferredStartDate: examRegistrations.preferredStartDate,
-        preferredDuration: examRegistrations.preferredDuration,
 
         // NEW: Emergency Contact
         emergencyContactName: examRegistrations.emergencyContactName,

@@ -25,13 +25,11 @@ import {
   sendCertificateFailureEmail,
 } from "@/lib/emails";
 
-import { computeDuration } from "@/lib/certificate-utils";
-
 /* =========================================================
    CERTIFICATE DATABASE
 ========================================================= */
 
-export const recoardsdb = drizzle(
+const recoardsdb = drizzle(
   process.env.STUDENTCERTIFICATES_DATABASE_URL!
 );
 
@@ -81,46 +79,6 @@ function getPerformanceGrade(
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
-}
-
-/**
- * Add months accurately (handles Jan 31 + 1 month = Feb 28/29)
- */
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  const day = result.getDate();
-
-  result.setMonth(result.getMonth() + months);
-
-  // Handle month overflow (e.g., Jan 31 + 1 month)
-  if (result.getDate() < day) {
-    result.setDate(0);
-  }
-
-  return result;
-}
-
-/**
- * Parse "1 Month" / "2 Months" / "4 Weeks" → number of months
- */
-function parseDurationToMonths(
-  duration: string | null | undefined
-): number | null {
-  if (!duration) return null;
-
-  const monthMatch = duration.match(/(\d+)\s*(month|months|mo)/i);
-  if (monthMatch) {
-    const months = parseInt(monthMatch[1], 10);
-    if (months > 0) return months;
-  }
-
-  const weekMatch = duration.match(/(\d+)\s*(week|weeks)/i);
-  if (weekMatch) {
-    const weeks = parseInt(weekMatch[1], 10);
-    if (weeks > 0) return Math.max(1, Math.round(weeks / 4));
-  }
-
-  return null;
 }
 
 /* =========================================================
@@ -187,6 +145,9 @@ export async function GET(request: NextRequest) {
         name: exams.name,
         passingScore: exams.passingScore,
         totalMarks: exams.totalMarks,
+        internshipStartDate: exams.internshipStartDate,
+        internshipEndDate: exams.internshipEndDate,
+        internshipDuration: exams.internshipDuration,
       })
       .from(exams)
       .where(eq(exams.id, examId))
@@ -203,6 +164,20 @@ export async function GET(request: NextRequest) {
     }
 
     const examData = examResult[0];
+
+    if (
+      !examData.internshipStartDate ||
+      !examData.internshipEndDate ||
+      !examData.internshipDuration
+    ) {
+      return NextResponse.json(
+        {
+          result: "fail",
+          reason: "exam internship schedule is not configured",
+        },
+        { status: 409 }
+      );
+    }
 
     /* =====================================================
        5. FIND STUDENT
@@ -457,33 +432,11 @@ export async function GET(request: NextRequest) {
 
     /* =====================================================
        19. INTERNSHIP DATES
-       -----------------------------------------------------
-       Priority:
-         1. preferredStartDate + preferredDuration
-         2. submittedAt + preferredDuration
-         3. submittedAt + 1 month (fallback)
     ===================================================== */
 
-    let internshipStart: Date;
-
-    const preferredMonths =
-      parseDurationToMonths(registration.preferredDuration) ?? 1;
-
-    if (registration.preferredStartDate) {
-      internshipStart = new Date(registration.preferredStartDate);
-    } else if (registration.submittedAt) {
-      internshipStart = new Date(registration.submittedAt);
-    } else {
-      internshipStart = new Date();
-    }
-
-    const internshipEnd = addMonths(internshipStart, preferredMonths);
-
-    const startDate = formatDate(internshipStart);
-    const endDate = formatDate(internshipEnd);
-
-    // ✅ Compute duration from actual dates — NOT hardcoded
-    const duration = computeDuration(startDate, endDate);
+    const startDate = examData.internshipStartDate;
+    const endDate = examData.internshipEndDate;
+    const duration = examData.internshipDuration;
 
     /* =====================================================
        20. DEPARTMENT
