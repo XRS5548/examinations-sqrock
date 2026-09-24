@@ -85,6 +85,10 @@ export async function GET(
     ]);
     const signatureData = `data:image/png;base64,${signatureImage.toString("base64")}`;
     const stampData = `data:image/png;base64,${stampImage.toString("base64")}`;
+    const hrPhone =
+      offerLetter.hrPhone === "+91 9876543210"
+        ? "+91 8619819400"
+        : offerLetter.hrPhone || undefined;
 
     // Transform data for PDF
     const pdfData: InternshipOfferLetterData = {
@@ -147,7 +151,7 @@ export async function GET(
       hrName: offerLetter.hrName || undefined,
       hrDesignation: offerLetter.hrDesignation || undefined,
       hrEmail: offerLetter.hrEmail || undefined,
-      hrPhone: offerLetter.hrPhone || undefined,
+      hrPhone,
       authorizedPersonName: offerLetter.authorizedPersonName || "Rohit Verma",
       authorizedPersonDesignation: offerLetter.authorizedPersonDesignation || "Director",
       authorizedSignature: signatureData,

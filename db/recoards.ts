@@ -270,7 +270,7 @@ export const offerLetters = pgTable("offer_letters", {
 
   hrPhone: varchar("hr_phone", {
     length: 30,
-  }).default("+91 9876543210"),
+  }).default("+91 8619819400"),
 
   authorizedPersonName: varchar("authorized_person_name", {
     length: 255,

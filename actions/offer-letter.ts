@@ -313,7 +313,7 @@ export async function getOrCreateOfferLetter(
       hrName: "SANIYA KHAN",
       hrDesignation: "Co-Founder",
       hrEmail: "support@sqrock.cloud",
-      hrPhone: "+91 9876543210",
+      hrPhone: "+91 8619819400",
 
       authorizedPersonName: "Rohit Verma",
       authorizedPersonDesignation: "Director",
