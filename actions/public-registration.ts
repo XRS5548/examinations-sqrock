@@ -24,7 +24,6 @@ const registrationSchema = z.object({
   course: z.string().min(1, "Course is required"),
   branch: z.string().min(1, "Branch is required"),
   semester: z.string().min(1, "Semester is required"),
-  enrollmentNumber: z.string().min(1, "Enrollment number is required"),
   graduationYear: z.string().min(1, "Graduation year is required"),
 
   // Address Details
@@ -33,11 +32,6 @@ const registrationSchema = z.object({
   state: z.string().min(1, "State is required"),
   country: z.string().min(1, "Country is required"),
   pincode: z.string().min(1, "Pincode is required"),
-
-  // Emergency Contact
-  emergencyContactName: z.string().min(1, "Emergency contact name is required"),
-  emergencyContactPhone: z.string().min(1, "Emergency contact phone is required"),
-  emergencyContactRelation: z.string().min(1, "Emergency contact relation is required"),
 
   examId: z.coerce.number(),
 });
@@ -101,7 +95,6 @@ export async function registerForExam(formData: FormData) {
       course: formData.get("course") as string,
       branch: formData.get("branch") as string,
       semester: formData.get("semester") as string,
-      enrollmentNumber: formData.get("enrollmentNumber") as string,
       graduationYear: formData.get("graduationYear") as string,
 
       // Address Details
@@ -110,11 +103,6 @@ export async function registerForExam(formData: FormData) {
       state: formData.get("state") as string,
       country: formData.get("country") as string,
       pincode: formData.get("pincode") as string,
-
-      // Emergency Contact
-      emergencyContactName: formData.get("emergencyContactName") as string,
-      emergencyContactPhone: formData.get("emergencyContactPhone") as string,
-      emergencyContactRelation: formData.get("emergencyContactRelation") as string,
 
       examId: formData.get("examId") as string,
     };
@@ -307,7 +295,7 @@ export async function registerForExam(formData: FormData) {
         course: validated.course,
         branch: validated.branch,
         semester: validated.semester,
-        enrollmentNumber: validated.enrollmentNumber,
+        enrollmentNumber: null,
         graduationYear: validated.graduationYear
           ? parseInt(validated.graduationYear)
           : null,
@@ -318,11 +306,6 @@ export async function registerForExam(formData: FormData) {
         state: validated.state,
         country: validated.country || "India",
         pincode: validated.pincode,
-
-        // Emergency Contact
-        emergencyContactName: validated.emergencyContactName,
-        emergencyContactPhone: validated.emergencyContactPhone,
-        emergencyContactRelation: validated.emergencyContactRelation,
       })
       .returning();
 

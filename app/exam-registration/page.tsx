@@ -1,4 +1,4 @@
-// app/exam-registration/page.tsx
+﻿// app/exam-registration/page.tsx
 
 "use client";
 
@@ -29,7 +29,6 @@ import {
   Home,
   UserCircle,
   BookOpen,
-  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +114,6 @@ export default function ExamRegistrationPage() {
     course: "",
     branch: "",
     semester: "",
-    enrollmentNumber: "",
     graduationYear: "",
     
     // Address Details
@@ -127,11 +125,6 @@ export default function ExamRegistrationPage() {
     
     // Domain
     domain: "",
-    
-    // Emergency Contact
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    emergencyContactRelation: "",
   });
 
   const [error, setError] = useState("");
@@ -169,7 +162,6 @@ export default function ExamRegistrationPage() {
     fd.set("course", formData.course);
     fd.set("branch", formData.branch);
     fd.set("semester", formData.semester);
-    fd.set("enrollmentNumber", formData.enrollmentNumber);
     fd.set("graduationYear", formData.graduationYear);
     
     // Address Details
@@ -181,11 +173,6 @@ export default function ExamRegistrationPage() {
     
     // Domain
     fd.set("domain", formData.domain);
-    
-    // Emergency Contact
-    fd.set("emergencyContactName", formData.emergencyContactName);
-    fd.set("emergencyContactPhone", formData.emergencyContactPhone);
-    fd.set("emergencyContactRelation", formData.emergencyContactRelation);
     
     // Exam Selection
     fd.set("examId", String(selectedExamId));
@@ -610,20 +597,6 @@ export default function ExamRegistrationPage() {
                                   </div>
                                   
                                   <div className="space-y-1.5">
-                                    <Label htmlFor="enrollmentNumber" className="text-sm font-medium">
-                                      <Hash className="h-3.5 w-3.5 inline mr-1.5 text-gray-500" />
-                                      Enrollment Number *
-                                    </Label>
-                                    <Input
-                                      id="enrollmentNumber"
-                                      placeholder="e.g., 21CS1234"
-                                      value={formData.enrollmentNumber}
-                                      onChange={(e) => setFormData({ ...formData, enrollmentNumber: e.target.value })}
-                                      required
-                                    />
-                                  </div>
-                                  
-                                  <div className="space-y-1.5">
                                     <Label htmlFor="graduationYear" className="text-sm font-medium">
                                       Expected Graduation Year *
                                     </Label>
@@ -746,66 +719,6 @@ export default function ExamRegistrationPage() {
                                       ))}
                                     </SelectContent>
                                   </Select>
-                                </div>
-                              </div>
-
-                              {/* ===================================================== */}
-                              {/* EMERGENCY CONTACT */}
-                              {/* ===================================================== */}
-                              <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                  <Phone className="h-5 w-5 text-red-500" />
-                                  Emergency Contact
-                                </h3>
-                                
-                                <div className="grid md:grid-cols-3 gap-5">
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="emergencyContactName" className="text-sm font-medium">
-                                      Contact Name *
-                                    </Label>
-                                    <Input
-                                      id="emergencyContactName"
-                                      placeholder="e.g., Parent/Guardian name"
-                                      value={formData.emergencyContactName}
-                                      onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                                      required
-                                    />
-                                  </div>
-                                  
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="emergencyContactPhone" className="text-sm font-medium">
-                                      Contact Phone *
-                                    </Label>
-                                    <Input
-                                      id="emergencyContactPhone"
-                                      placeholder="e.g., +91 9876543210"
-                                      value={formData.emergencyContactPhone}
-                                      onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
-                                      required
-                                    />
-                                  </div>
-                                  
-                                  <div className="space-y-1.5">
-                                    <Label htmlFor="emergencyContactRelation" className="text-sm font-medium">
-                                      Relation *
-                                    </Label>
-                                    <Select
-                                      value={formData.emergencyContactRelation}
-                                      onValueChange={(value) => setFormData({ ...formData, emergencyContactRelation: value })}
-                                      required
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select relation" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Father">Father</SelectItem>
-                                        <SelectItem value="Mother">Mother</SelectItem>
-                                        <SelectItem value="Guardian">Guardian</SelectItem>
-                                        <SelectItem value="Sibling">Sibling</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
                                 </div>
                               </div>
 
